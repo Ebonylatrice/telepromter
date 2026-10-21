@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A word-for-word teleprompter for Meta Ray-Ban Display, controlled with the Meta Neural Band.">
+<meta name="mrbd-web-app-capable" content="yes">
+<meta name="application-name" content="Teleprompter">
+<meta name="color-scheme" content="dark">
+<title>Teleprompter</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  /* ---------- Tokens ----------
+     The glasses use an additive display: black adds no light (it looks
+     see-through), bright pixels glow over the world. So the canvas stays
+     black and only the words light up. --u is one "design pixel" at the
+     600 x 600 lens size, scaled to whatever viewport we actually get. */
+  :root {
+    --ink: #ffffff;
+    --ink-soft: rgba(255, 255, 255, .62);
+    --ink-faint: rgba(255, 255, 255, .40);
+    --accent: #ffc857;            /* gold: cues, stress, reading marker */
+    --accent-fill: rgba(255, 200, 87, .14);
+    --section: #8fd3ff;           /* blue: section / slide headers */
+    --edge: rgba(255, 255, 255, .30);
+    --scale: 1;                   /* text size, set from the menu */
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; inline-size: 100%; block-size: 100%; background: #000; }
+  body {
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  #app {
+    --u: calc(min(100vw, 100vh, 760px) / 600);
+    inline-size: min(100%, 760px);
+    block-size: 100%;
+    margin-inline: auto;
+    position: relative;
+  }
+  .screen { position: absolute; inset: 0; }
+  .screen[hidden] { display: none !important; }
+
+  /* ---------- Menu ---------- */
+  #menu {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: calc(var(--u) * 16);
+    padding: calc(var(--u) * 34) calc(var(--u) * 40) calc(var(--u) * 26);
+  }
+  .eyebrow {
+    margin: 0 0 calc(var(--u) * 6);
+    font-size: calc(var(--u) * 15);
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  #title {
+    margin: 0;
+    font-size: calc(var(--u) * 30);
+    line-height: 1.15;
+    font-weight: 700;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .stats {
+    margin: calc(var(--u) * 8) 0 0;
+    font-size: calc(var(--u) * 18);
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--u) * 12);
+    min-block-size: 0;
+    align-self: center;
+  }
+  .btn {
+    font: inherit;
+    color: var(--ink);
+    background: rgba(255, 255, 255, .05);
+    border: calc(var(--u) * 2) solid var(--edge);
+    border-radius: calc(var(--u) * 16);
+    padding: calc(var(--u) * 12) calc(var(--u) * 16);
+    font-size: calc(var(--u) * 21);
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+  }
+  .btn.primary {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-fill);
+    font-size: calc(var(--u) * 25);
+    padding-block: calc(var(--u) * 15);
+  }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn:focus { outline: none; }
+  .btn:focus-visible, .btn:focus {
+    outline: calc(var(--u) * 3) solid var(--ink);
+    outline-offset: calc(var(--u) * 3);
+    background: rgba(255, 255, 255, .16);
+  }
+  .btn.primary:focus { background: rgba(255, 200, 87, .30); }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: calc(var(--u) * 12);
+  }
+  .btn.small {
+    font-size: calc(var(--u) * 15);
+    font-weight: 600;
+    color: var(--ink-soft);
+    line-height: 1.25;
+    padding-block: calc(var(--u) * 9);
+  }
+  .btn.small b {
+    display: block;
+    font-size: calc(var(--u) * 21);
+    color: var(--ink);
+  }
+  .foot {
+    margin: 0;
+    font-size: calc(var(--u) * 14);
+    line-height: 1.4;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+  .foot .src { display: block; color: var(--ink-soft); }
+
+  /* ---------- Prompter ---------- */
+  #prompter {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: calc(var(--u) * 22) calc(var(--u) * 30) calc(var(--u) * 20);
+    touch-action: none;           /* phone preview only; not set on body on purpose */
+    user-select: none;
+  }
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: calc(var(--u) * 10);
+    font-size: calc(var(--u) * 17);
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    padding-block-end: calc(var(--u) * 8);
+  }
+  .hud span { flex: 1 1 0; white-space: nowrap; }
+  .hud span:nth-child(2) { text-align: center; }
+  .hud span:last-child { text-align: end; }
+  #state.paused, #state.waiting { color: var(--accent); }
+  .viewport {
+    position: relative;
+    overflow: hidden;
+    min-block-size: 0;
+  }
+  .content {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    padding-inline-start: calc(var(--u) * 26);
+    padding-inline-end: calc(var(--u) * 6);
+    font-size: calc(var(--u) * 36 * var(--scale));
+    line-height: 1.34;
+    font-weight: 600;
+    will-change: transform;
+  }
+  .content p, .content h2 { margin: 0; }
+  .para {
+    margin-block-end: .62em !important;
+    text-wrap: pretty;
+    color: var(--ink);
+    opacity: .66;
+    transition: opacity .25s ease;
+  }
+  .para.past { opacity: .34; }
+  .para.current { opacity: 1; }
+  .para.quiet { font-size: .8em; }
+  .sec {
+    font-size: .52em;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--section);
+    border-block-start: calc(var(--u) * 2) solid rgba(143, 211, 255, .55);
+    padding-block-start: .45em;
+    margin-block: .6em .7em !important;
+  }
+  .content > .sec:first-child { margin-block-start: 0 !important; }
+  .cue {
+    color: var(--accent);
+    font-style: italic;
+    font-weight: 600;
+    font-size: .78em;
+  }
+  .em {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: .09em;
+    text-underline-offset: .16em;
+  }
+  .end {
+    font-size: .55em;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-block: .4em 6em;
+  }
+  .marker {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    inline-size: 0;
+    block-size: 0;
+    border-block: calc(var(--u) * 9) solid transparent;
+    border-inline-start: calc(var(--u) * 13) solid var(--accent);
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+  .progress {
+    block-size: calc(var(--u) * 4);
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .16);
+    overflow: hidden;
+    margin-block-start: calc(var(--u) * 8);
+  }
+  .progress i {
+    display: block;
+    block-size: 100%;
+    inline-size: 0;
+    background: var(--ink-soft);
+  }
+  .toast {
+    position: absolute;
+    inset-inline: 0;
+    bottom: calc(var(--u) * 46);
+    margin-inline: auto;
+    inline-size: max-content;
+    max-inline-size: 80%;
+    padding: calc(var(--u) * 8) calc(var(--u) * 18);
+    border-radius: 99px;
+    border: calc(var(--u) * 2) solid var(--edge);
+    background: rgba(255, 255, 255, .10);
+    font-size: calc(var(--u) * 20);
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity .2s ease;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .toast.show { opacity: 1; }
+  .count {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: calc(var(--u) * 150);
+    font-weight: 800;
+    color: var(--accent);
+    pointer-events: none;
+    z-index: 4;
+  }
+  .count[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .para, .toast { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main id="app">
+
+  <section id="menu" class="screen" aria-label="Teleprompter menu">
+    <header>
+      <p class="eyebrow">Teleprompter</p>
+      <h1 id="title">Loading your script…</h1>
+      <p id="stats" class="stats">&nbsp;</p>
+    </header>
+
+    <div class="actions">
+      <button id="startBtn" class="btn primary" type="button" disabled>Start from the top</button>
+      <button id="resumeBtn" class="btn" type="button" hidden>Resume</button>
+      <div class="grid">
+        <button id="speedBtn" class="btn small" type="button">Speed<b id="speedVal">140 wpm</b></button>
+        <button id="sizeBtn" class="btn small" type="button">Text size<b id="sizeVal">Medium</b></button>
+        <button id="flipBtn" class="btn small" type="button">Swipes<b id="flipVal">Normal</b></button>
+        <button id="reloadBtn" class="btn small" type="button">Script<b>Reload</b></button>
+      </div>
+    </div>
+
+    <p class="foot">
+      <span id="source" class="src">&nbsp;</span>
+      Pinch: play/pause · Swipe ↑↓: speed · Swipe ←→: paragraph · Back: menu
+    </p>
+  </section>
+
+  <section id="prompter" class="screen" hidden aria-label="Teleprompter">
+    <div class="hud">
+      <span id="elapsed">0:00</span>
+      <span id="state" class="waiting">Pinch to start</span>
+      <span id="remain"></span>
+    </div>
+    <div id="viewport" class="viewport">
+      <div id="marker" class="marker" aria-hidden="true"></div>
+      <div id="content" class="content"></div>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="count" class="count" hidden aria-hidden="true"></div>
+  </section>
+
+</main>
+<noscript><p style="padding:24px">This teleprompter needs JavaScript.</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Small helpers ---------- */
+  const $ = (id) => document.getElementById(id);
+  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+  const num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(v); return Number.isFinite(n) ? n : d; };
+  const store = {
+    get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, String(v)); } catch { /* storage full or blocked */ } },
+  };
+  const mmss = (sec) => {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+  };
+  const hash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+
+  /* ---------- Settings ---------- */
+  const SIZES = [
+    { name: 'Small', scale: 0.84 }, { name: 'Medium', scale: 1 },
+    { name: 'Large', scale: 1.22 }, { name: 'X-Large', scale: 1.45 },
+  ];
+  const FLIPS = ['Normal', 'Flip ↕', 'Flip ↔', 'Flip both'];
+  const WPM_MIN = 80, WPM_MAX = 220, WPM_STEP = 10;
+
+  // Optional ?script=talk2.txt lets one install show a different file.
+  const requested = new URLSearchParams(location.search).get('script') || '';
+  const SCRIPT_FILE = /^[\w\-\/]+\.txt$/.test(requested) && !requested.includes('..') ? requested : 'script.txt';
+
+  const SAMPLE = [
+    'title: Add your script',
+    '# Almost there',
+    'The teleprompter is working, but it could not load script.txt.',
+    'Put a file named script.txt next to index.html on your site, then choose Reload on the menu. [pause]',
+  ].join('\n');
+
+  const S = {
+    title: '', words: 0, hash: '', blocks: [],
+    wpm: clamp(num(store.get('tp.wpm'), 140), WPM_MIN, WPM_MAX),
+    size: clamp(num(store.get('tp.size'), 1), 0, SIZES.length - 1),
+    flip: clamp(num(store.get('tp.flip'), 0), 0, FLIPS.length - 1),
+    screen: 'menu',
+    y: 0, maxY: 1, R: 0, lh: 40, pxPerWord: 30,
+    items: [], current: -1,
+    playing: false, started: false, ended: false, resumed: false,
+    elapsedBase: 0, runningSince: 0,
+    tween: null, raf: 0, last: 0,
+    countdown: 0, clock: 0, toastTimer: 0, saveTimer: 0, wake: null,
+  };
+
+  const app = $('app'), content = $('content'), viewport = $('viewport');
+
+  /* ---------- Script parsing ----------
+     Blank line   = new paragraph (one swipe = one paragraph)
+     # Heading    = section / slide marker (shown in blue, not read aloud)
+     [pause]      = stage direction (shown in gold)
+     *word*       = stress this word (gold underline)
+     title: ...   = optional first line, shown on the menu */
+  function parse(raw) {
+    const lines = raw.replace(/\r\n?/g, '\n').replace(/ /g, ' ').split('\n');
+    let title = '';
+    while (lines.length && !lines[0].trim()) lines.shift();
+    if (lines.length && /^\s*title\s*:/i.test(lines[0])) title = lines.shift().replace(/^\s*title\s*:\s*/i, '').trim();
+    const blocks = [];
+    let buf = [];
+    const flush = () => { if (buf.length) { blocks.push({ type: 'p', text: buf.join(' ') }); buf = []; } };
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) { flush(); continue; }
+      const m = t.match(/^#{1,6}\s+(.+)$/);
+      if (m) { flush(); blocks.push({ type: 'h', text: m[1].trim() }); continue; }
+      buf.push(t);   // single line breaks reflow, so text pasted from a PDF still fits the lens
+    }
+    flush();
+    if (!title) { const h = blocks.find((b) => b.type === 'h'); title = h ? h.text : 'Your script'; }
+    return { title, blocks };
+  }
+
+  const countWords = (s) =>
+    s.replace(/\[[^\]\n]*\]/g, ' ').split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+
+  function appendInline(el, s) {
+    const re = /\[([^\]\n]+)\]|\*([^*\n]+)\*/g;
+    let i = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > i) el.append(s.slice(i, m.index));
+      const span = document.createElement('span');
+      if (m[1] !== undefined) { span.className = 'cue'; span.textContent = '[' + m[1] + ']'; }
+      else { span.className = 'em'; span.textContent = m[2]; }
+      el.append(span);
+      i = re.lastIndex;
+    }
+    if (i < s.length) el.append(s.slice(i));
+  }
+
+  function build() {
+    content.textContent = '';
+    let total = 0;
+    for (const b of S.blocks) {
+      let el;
+      if (b.type === 'h') {
+        el = document.createElement('h2');
+        el.className = 'blk sec';
+        el.textContent = b.text;
+        el.dataset.w = '0';
+      } else {
+        el = document.createElement('p');
+        el.className = 'blk para';
+        appendInline(el, b.text);
+        const w = countWords(b.text);
+        el.dataset.w = String(w);
+        if (!w) el.classList.add('quiet');
+        total += w;
+      }
+      content.append(el);
+    }
+    const end = document.createElement('p');
+    end.className = 'end';
+    end.textContent = '— End —';
+    content.append(end);
+    S.words = total;
+  }
+
+  function applyScript(raw, sourceNote) {
+    const parsed = parse(raw);
+    S.title = parsed.title;
+    S.blocks = parsed.blocks;
+    S.hash = hash(raw);
+    build();
+    $('title').textContent = S.title;
+    $('source').textContent = sourceNote;
+    $('startBtn').disabled = S.words === 0;
+    if (S.words === 0) $('title').textContent = 'Your script is empty';
+    refreshMenu();
+  }
+
+  async function loadScript() {
+    $('source').textContent = 'Loading ' + SCRIPT_FILE + '…';
+    const key = 'tp.script.' + SCRIPT_FILE;
+    try {
+      const res = await fetch(SCRIPT_FILE + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (res.headers.get('X-Offline-Copy')) throw new Error('offline');   // service worker fallback
+      const raw = await res.text();
+      store.set(key, raw);
+      store.set(key + '.at', Date.now());
+      applyScript(raw, SCRIPT_FILE + ' · loaded ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+    } catch {
+      const cached = store.get(key);
+      if (cached) {
+        const at = new Date(num(store.get(key + '.at'), Date.now()));
+        applyScript(cached, 'Offline copy · saved ' + at.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+      } else {
+        applyScript(SAMPLE, 'Couldn’t load ' + SCRIPT_FILE + ' · showing a placeholder');
+      }
+    }
+  }
+
+  /* ---------- Menu ---------- */
+  function savedSession() {
+    try {
+      const s = JSON.parse(store.get('tp.session', 'null'));
+      if (s && s.h === S.hash && s.f > 0.01 && s.f < 0.995) return s;
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  function refreshMenu() {
+    app.style.setProperty('--scale', SIZES[S.size].scale);
+    $('speedVal').textContent = S.wpm + ' wpm';
+    $('sizeVal').textContent = SIZES[S.size].name;
+    $('flipVal').textContent = FLIPS[S.flip];
+    $('stats').textContent = S.words
+      ? S.words.toLocaleString() + ' words · about ' + mmss((S.words / S.wpm) * 60) + ' at ' + S.wpm + ' wpm'
+      : 'Add text to ' + SCRIPT_FILE + ' and reload';
+    const sess = savedSession();
+    const resume = $('resumeBtn');
+    resume.hidden = !sess;
+    if (sess) resume.textContent = 'Resume · ' + Math.round(sess.f * 100) + '% · ' + mmss(sess.e) + ' in';
+  }
+
+  function focusMenu() {
+    const r = $('resumeBtn'), s = $('startBtn');
+    (!r.hidden ? r : !s.disabled ? s : $('reloadBtn')).focus();
+  }
+
+  $('speedBtn').addEventListener('click', () => {
+    S.wpm = S.wpm + WPM_STEP > WPM_MAX ? WPM_MIN : S.wpm + WPM_STEP;
+    store.set('tp.wpm', S.wpm);
+    refreshMenu();
+  });
+  $('sizeBtn').addEventListener('click', () => {
+    S.size = (S.size + 1) % SIZES.length;
+    store.set('tp.size', S.size);
+    refreshMenu();
+  });
+  $('flipBtn').addEventListener('click', () => {
+    S.flip = (S.flip + 1) % FLIPS.length;
+    store.set('tp.flip', S.flip);
+    refreshMenu();
+  });
+  $('reloadBtn').addEventListener('click', async () => { await loadScript(); focusMenu(); });
+  $('startBtn').addEventListener('click', () => openPrompter(null));
+  $('resumeBtn').addEventListener('click', () => openPrompter(savedSession()));
+
+  /* ---------- Prompter layout ---------- */
+  function layout() {
+    const H = viewport.clientHeight;
+    const cs = getComputedStyle(content);
+    S.lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.34;
+    S.R = Math.round(H * 0.32);                     // reading line, about a third down
+    S.items = [...content.querySelectorAll('.blk')].map((el) => ({
+      el, top: el.offsetTop, h: el.offsetHeight, para: el.classList.contains('para'), w: num(el.dataset.w, 0),
+    }));
+    const end = content.querySelector('.end');
+    S.maxY = Math.max(1, end ? end.offsetTop : content.scrollHeight);
+    S.pxPerWord = S.words ? S.maxY / S.words : 30;
+    $('marker').style.top = (S.R + S.lh / 2) + 'px';
+    // Fade lines above the reading line so the eye lands on the current line.
+    const fadeTop = Math.max(0, S.R - S.lh * 1.2), solid = S.R - S.lh * 0.15, fadeBot = Math.max(solid + 1, H - S.lh * 0.8);
+    const mask = `linear-gradient(to bottom, rgba(0,0,0,.18) 0px, rgba(0,0,0,.5) ${fadeTop}px, #000 ${solid}px, #000 ${fadeBot}px, rgba(0,0,0,.35) ${H}px)`;
+    viewport.style.webkitMaskImage = mask;
+    viewport.style.maskImage = mask;
+    S.current = -1;
+  }
+
+  function render() {
+    content.style.transform = `translate3d(0, ${Math.round(S.R - S.y)}px, 0)`;
+    $('bar').style.inlineSize = (clamp(S.y / S.maxY, 0, 1) * 100).toFixed(2) + '%';
+    // Highlight the paragraph sitting on the reading line.
+    const probe = S.y + S.lh * 0.5;
+    let cur = 0;
+    for (let i = 0; i < S.items.length; i++) { if (S.items[i].top <= probe) cur = i; else break; }
+    // A section header on the line? Light up the paragraph that follows it.
+    while (S.items[cur] && !S.items[cur].para && cur < S.items.length - 1) cur++;
+    if (cur !== S.current) {
+      S.current = cur;
+      S.items.forEach((it, i) => {
+        if (!it.para) return;
+        it.el.classList.toggle('current', i === cur);
+        it.el.classList.toggle('past', i < cur);
+      });
+    }
+  }
+
+  /* ---------- Timers & status ---------- */
+  const elapsed = () => S.elapsedBase + (S.runningSince ? (Date.now() - S.runningSince) / 1000 : 0);
+
+  function updateHud() {
+    $('elapsed').textContent = mmss(elapsed());
+    const left = S.words * (1 - clamp(S.y / S.maxY, 0, 1));
+    $('remain').textContent = S.ended ? 'Done' : '~' + mmss((left / S.wpm) * 60) + ' left';
+  }
+
+  function updateState() {
+    const el = $('state');
+    let text, cls = '';
+    if (S.countdown) { text = 'Get ready'; cls = 'waiting'; }
+    else if (S.ended) { text = 'End · pinch to restart'; cls = 'waiting'; }
+    else if (!S.started) { text = S.resumed ? 'Pinch to resume' : 'Pinch to start'; cls = 'waiting'; }
+    else if (S.playing) { text = '▶ ' + S.wpm + ' wpm'; }
+    else { text = '❚❚ Paused'; cls = 'paused'; }
+    el.textContent = text;
+    el.className = cls;
+    updateHud();
+  }
+
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(S.toastTimer);
+    S.toastTimer = setTimeout(() => t.classList.remove('show'), 1100);
+  }
+
+  function saveSession() {
+    if (!S.hash) return;
+    store.set('tp.session', JSON.stringify({ h: S.hash, f: clamp(S.y / S.maxY, 0, 1), e: Math.round(elapsed()) }));
+  }
+
+  /* ---------- Motion ---------- */
+  function loop(t) {
+    const dt = S.last ? Math.min(0.1, (t - S.last) / 1000) : 0;
+    S.last = t;
+    if (S.tween) {
+      const k = Math.min(1, (t - S.tween.t0) / S.tween.d);
+      const e = 1 - Math.pow(1 - k, 3);
+      S.y = S.tween.from + (S.tween.to - S.tween.from) * e;
+      if (k >= 1) S.tween = null;
+    } else if (S.playing) {
+      S.y += (S.wpm / 60) * S.pxPerWord * dt;
+    }
+    if (S.y >= S.maxY) {
+      S.y = S.maxY;
+      S.tween = null;
+      if (S.playing) { setPlaying(false); }
+      if (!S.ended) { S.ended = true; updateState(); }
+    }
+    render();
+    if (S.playing || S.tween) S.raf = requestAnimationFrame(loop);
+    else { S.raf = 0; S.last = 0; }
+  }
+  const ensureLoop = () => { if (!S.raf) { S.last = 0; S.raf = requestAnimationFrame(loop); } };
+
+  function goTo(target) {
+    target = clamp(target, 0, S.maxY);
+    if (target < S.maxY - 1 && S.ended) { S.ended = false; updateState(); }
+    S.tween = { from: S.y, to: target, t0: performance.now(), d: 260 };
+    ensureLoop();
+  }
+
+  const stops = () => S.items.filter((it) => it.para && it.w > 0).map((it) => it.top);
+  // "The top" = your first spoken line, not a section header above it.
+  const topY = () => { const s = stops(); return s.length ? s[0] : 0; };
+
+  function stepParagraph(dir) {
+    const list = stops();
+    const y = S.tween ? S.tween.to : S.y;
+    let target;
+    if (dir > 0) target = list.find((top) => top > y + 2);
+    else { const before = list.filter((top) => top < y - 2); target = before.length ? before[before.length - 1] : topY(); }
+    goTo(target === undefined ? S.maxY : target);
+  }
+
+  function setPlaying(on) {
+    if (on === S.playing) return;
+    S.playing = on;
+    if (on) {
+      S.started = true;
+      S.ended = false;
+      if (!S.runningSince) S.runningSince = Date.now();
+      wakeOn();
+      ensureLoop();
+    } else {
+      saveSession();
+    }
+    updateState();
+  }
+
+  function startCountdown() {
+    let n = 3;
+    const box = $('count');
+    box.textContent = n;
+    box.hidden = false;
+    S.countdown = setInterval(() => {
+      n -= 1;
+      if (n <= 0) { cancelCountdown(); setPlaying(true); }
+      else box.textContent = n;
+    }, 800);
+    updateState();
+  }
+  function cancelCountdown() {
+    if (S.countdown) clearInterval(S.countdown);
+    S.countdown = 0;
+    $('count').hidden = true;
+    updateState();
+  }
+
+  /* ---------- Input ----------
+     Neural Band and the glasses touchpad arrive as arrow keys + Enter.
+     ↓ / → move forward (faster, next paragraph); ↑ / ← move back. */
+  function act(a) {
+    if (S.screen !== 'prompter') return;
+    if (a === 'back') { history.back(); return; }
+    if (a === 'select') {
+      if (S.countdown) { cancelCountdown(); return; }
+      if (S.ended) {
+        S.y = topY(); S.ended = false; S.started = false; S.resumed = false; S.current = -1;
+        S.elapsedBase = 0; S.runningSince = 0;
+        render(); updateState(); toast('Back to the top');
+        return;
+      }
+      if (!S.started) { startCountdown(); return; }
+      setPlaying(!S.playing);
+      return;
+    }
+    if (a === 'up' || a === 'down') {
+      const fwd = a === 'down';
+      if (S.playing) {
+        S.wpm = clamp(S.wpm + (fwd ? WPM_STEP : -WPM_STEP), WPM_MIN, WPM_MAX);
+        store.set('tp.wpm', S.wpm);
+        toast((fwd ? 'Faster · ' : 'Slower · ') + S.wpm + ' wpm');
+        updateState();
+      } else {
+        goTo((S.tween ? S.tween.to : S.y) + (fwd ? S.lh : -S.lh));
+      }
+      return;
+    }
+    if (a === 'left' || a === 'right') stepParagraph(a === 'right' ? 1 : -1);
+  }
+
+  function flipDir(a) {
+    const v = S.flip === 1 || S.flip === 3, h = S.flip === 2 || S.flip === 3;
+    if (v && a === 'up') return 'down';
+    if (v && a === 'down') return 'up';
+    if (h && a === 'left') return 'right';
+    if (h && a === 'right') return 'left';
+    return a;
+  }
+
+  const KEYS = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    Enter: 'select', ' ': 'select', PageDown: 'right', PageUp: 'left', Escape: 'back',
+  };
+  document.addEventListener('keydown', (e) => {
+    if (S.screen !== 'prompter') return;          // menu uses the browser's own focus navigation
+    const a = KEYS[e.key];
+    if (!a) return;
+    e.preventDefault();                            // replace default scroll / activation while prompting
+    if (e.repeat && a === 'select') return;
+    act(a === 'back' || a === 'select' ? a : flipDir(a));
+  });
+
+  // Touch: for previewing on a phone. Tap = pinch, swipe like scrolling a page.
+  let touch = null;
+  $('prompter').addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    touch = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  $('prompter').addEventListener('touchend', (e) => {
+    if (!touch) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) < 14 && Math.abs(dy) < 14) act('select');
+    else if (Math.abs(dy) >= Math.abs(dx)) act(dy < 0 ? 'down' : 'up');
+    else act(dx < 0 ? 'right' : 'left');
+  }, { passive: true });
+
+  /* ---------- Screens & Back ---------- */
+  function openPrompter(session) {
+    $('menu').hidden = true;
+    $('prompter').hidden = false;
+    S.screen = 'prompter';
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    layout();
+    S.y = session ? clamp(session.f, 0, 1) * S.maxY : topY();
+    S.resumed = !!session;
+    S.elapsedBase = session ? num(session.e, 0) : 0;
+    S.runningSince = 0;
+    S.started = false;
+    S.ended = false;
+    S.playing = false;
+    S.tween = null;
+    S.current = -1;
+    render();
+    updateState();
+    clearInterval(S.clock);
+    S.clock = setInterval(updateHud, 250);
+    clearInterval(S.saveTimer);
+    S.saveTimer = setInterval(() => { if (S.playing) saveSession(); }, 2000);
+    wakeOn();
+    history.pushState({ screen: 'prompter' }, '');
+  }
+
+  function closePrompter() {
+    if (S.screen !== 'prompter') return;
+    cancelCountdown();
+    if (S.playing) setPlaying(false);
+    if (S.runningSince) { S.elapsedBase += (Date.now() - S.runningSince) / 1000; S.runningSince = 0; }
+    if (S.started || S.resumed || S.y > topY() + 1) saveSession();
+    if (S.ended) store.set('tp.session', 'null');
+    clearInterval(S.clock);
+    clearInterval(S.saveTimer);
+    if (S.raf) cancelAnimationFrame(S.raf);
+    S.raf = 0;
+    wakeOff();
+    S.screen = 'menu';
+    $('prompter').hidden = true;
+    $('menu').hidden = false;
+    refreshMenu();
+    focusMenu();
+  }
+
+  history.replaceState({ screen: 'menu' }, '');
+  window.addEventListener('popstate', (e) => {
+    if (!e.state || e.state.screen !== 'prompter') closePrompter();
+  });
+
+  /* ---------- Keep the display awake; pause if the glasses come off ---------- */
+  async function wakeOn() {
+    try {
+      if ('wakeLock' in navigator && !S.wake && document.visibilityState === 'visible') {
+        S.wake = await navigator.wakeLock.request('screen');
+        S.wake.addEventListener('release', () => { S.wake = null; });
+      }
+    } catch { /* not available here */ }
+  }
+  function wakeOff() { try { if (S.wake) S.wake.release(); } catch { /* ignore */ } S.wake = null; }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (S.countdown) cancelCountdown();
+      if (S.playing) setPlaying(false);
+      saveSession();
+    } else if (S.screen === 'prompter') {
+      wakeOn();
+    }
+  });
+
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(() => {
+      if (S.screen !== 'prompter') return;
+      const f = S.y / S.maxY;
+      layout();
+      S.y = clamp(f, 0, 1) * S.maxY;
+      render();
+    }).observe(viewport);
+  }
+
+  /* ---------- Offline: keep a copy of the app for spotty venue Wi-Fi ---------- */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
+  }
+
+  refreshMenu();
+  loadScript().then(focusMenu);
+})();
+</script>
+</body>
+</html>

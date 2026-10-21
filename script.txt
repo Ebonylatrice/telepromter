@@ -1,0 +1,20 @@
+title: Practice run
+
+# Opening
+Good morning, everyone. Thank you for being here today. [pause]
+
+This is a practice script so you can get comfortable reading in the glasses. When you're ready, replace everything in this file with your own words.
+
+# How to write your script
+Leave a blank line between paragraphs. One swipe forward jumps to the next paragraph, so keep each one to a thought or two.
+
+Start a line with a hash mark and a space to make a section header, like the blue ones you see here. They're a good place to mark slide changes. [next slide]
+
+Anything in square brackets shows up in gold, like [pause] or [breathe] or [smile], so you know it's a cue and not something to read out loud.
+
+Wrap a word in asterisks to *stress* it. It gets a gold underline.
+
+# Closing
+That's everything. Pinch to pause, swipe up or down to change the speed, and swipe back a paragraph if you lose your place. [pause]
+
+Thank you.
