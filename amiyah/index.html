@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Math Blaster and Memory: kid games for Meta Ray-Ban Display.">
+<meta name="mrbd-web-app-capable" content="yes">
+<meta name="application-name" content="Kids Games">
+<meta name="color-scheme" content="dark">
+<title>Kids Games</title>
+<style>
+  :root {
+    --ink: #fff; --soft: rgba(255,255,255,.66); --faint: rgba(255,255,255,.42);
+    --gold: #ffd25e; --green: #7ee2a8; --red: #ff9b9b; --blue: #8fd3ff; --pink: #ff9ee0; --purple: #c7a4ff;
+    --edge: rgba(255,255,255,.32);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; inline-size: 100%; block-size: 100%; background: #000; }
+  body { color: var(--ink); font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  #app {
+    --u: calc(min(100vw, 100vh, 760px) / 600);
+    inline-size: min(100%, 760px); block-size: 100%; margin-inline: auto;
+    display: grid; grid-template-rows: auto minmax(0, 1fr);
+    padding: calc(var(--u) * 22) calc(var(--u) * 30) calc(var(--u) * 18);
+  }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; padding-block-end: calc(var(--u) * 8);
+    font-size: calc(var(--u) * 18); font-weight: 800; color: var(--soft); font-variant-numeric: tabular-nums; }
+  #crumb { color: var(--gold); letter-spacing: .12em; text-transform: uppercase; }
+  #stars { color: var(--gold); }
+  #view { position: relative; min-block-size: 0; overflow: hidden; padding: calc(var(--u) * 6); }
+  .center { text-align: center; }
+  h1 { margin: 0; font-size: calc(var(--u) * 40); line-height: 1.1; }
+  .sub { margin: calc(var(--u) * 6) 0 calc(var(--u) * 18); font-size: calc(var(--u) * 20); color: var(--soft); }
+
+  .btn { font: inherit; color: var(--ink); background: rgba(255,255,255,.06); border: calc(var(--u) * 3) solid var(--edge);
+    border-radius: calc(var(--u) * 24); padding: calc(var(--u) * 14); font-size: calc(var(--u) * 26); font-weight: 800; cursor: pointer; }
+  .btn:focus { outline: none; }
+  .btn:focus, .btn:focus-visible { outline: calc(var(--u) * 4) solid var(--ink); outline-offset: calc(var(--u) * 4); background: rgba(255,255,255,.18); }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 16); }
+  .tile { min-block-size: calc(var(--u) * 210); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 10); }
+  .tile .icon { font-size: calc(var(--u) * 64); line-height: 1; }
+  .tile small { font-size: calc(var(--u) * 17); color: var(--soft); font-weight: 700; }
+  .t-math { border-color: var(--gold); } .t-math .icon { color: var(--gold); }
+  .t-mem { border-color: var(--purple); } .t-mem .icon { color: var(--purple); }
+  .note { margin: calc(var(--u) * 16) 0 0; text-align: center; font-size: calc(var(--u) * 16); color: var(--faint); }
+
+  /* Math */
+  .progress { display: flex; gap: calc(var(--u) * 6); justify-content: center; margin-bottom: calc(var(--u) * 10); }
+  .progress i { inline-size: calc(var(--u) * 16); block-size: calc(var(--u) * 16); border-radius: 50%; background: rgba(255,255,255,.18); }
+  .progress i.done { background: var(--gold); }
+  .progress i.now { background: var(--ink); }
+  .problem { text-align: center; font-size: calc(var(--u) * 104); font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; margin: calc(var(--u) * 6) 0 calc(var(--u) * 18); letter-spacing: .02em; }
+  .problem .q { color: var(--gold); }
+  .answers { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--u) * 16); }
+  .answers .btn { font-size: calc(var(--u) * 50); padding-block: calc(var(--u) * 18); font-variant-numeric: tabular-nums; }
+  .btn.right { border-color: var(--green); background: rgba(126,226,168,.22); color: var(--green); }
+  .btn.wrong { border-color: var(--red); background: rgba(255,155,155,.14); color: var(--red); animation: shake .35s; }
+  .btn.wrong:disabled { opacity: .45; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(calc(var(--u) * -10)); } 75% { transform: translateX(calc(var(--u) * 10)); } }
+  .cheer { min-block-size: calc(var(--u) * 50); margin-top: calc(var(--u) * 16); text-align: center; font-size: calc(var(--u) * 32); font-weight: 900; }
+  .cheer.good { color: var(--green); } .cheer.try { color: var(--red); }
+
+  /* Results */
+  .bigstars { text-align: center; font-size: calc(var(--u) * 46); letter-spacing: .08em; color: var(--gold); margin: calc(var(--u) * 8) 0; word-break: break-all; line-height: 1.25; }
+  .bigstars .off { color: rgba(255,255,255,.18); }
+  .score { text-align: center; font-size: calc(var(--u) * 84); font-weight: 900; line-height: 1; }
+  .stack { display: flex; flex-direction: column; gap: calc(var(--u) * 14); margin-top: calc(var(--u) * 16); }
+
+  /* Memory */
+  .pad { position: relative; margin: calc(var(--u) * 4) auto 0; inline-size: calc(var(--u) * 390); block-size: calc(var(--u) * 390); }
+  .arrow { position: absolute; inline-size: calc(var(--u) * 130); block-size: calc(var(--u) * 130); border-radius: calc(var(--u) * 30);
+    border: calc(var(--u) * 4) solid currentColor; display: grid; place-items: center; font-size: calc(var(--u) * 70); font-weight: 900;
+    opacity: .38; transition: opacity .12s, transform .12s, background .12s; }
+  .arrow.lit { opacity: 1; transform: scale(1.1); background: color-mix(in srgb, currentColor 35%, transparent); }
+  .a-up { left: 50%; top: 0; translate: -50% 0; color: var(--gold); }
+  .a-down { left: 50%; bottom: 0; translate: -50% 0; color: var(--green); }
+  .a-left { top: 50%; left: 0; translate: 0 -50%; color: var(--blue); }
+  .a-right { top: 50%; right: 0; translate: 0 -50%; color: var(--pink); }
+  .hub { position: absolute; left: 50%; top: 50%; translate: -50% -50%; text-align: center; }
+  .hub b { display: block; font-size: calc(var(--u) * 54); line-height: 1; font-variant-numeric: tabular-nums; }
+  .hub span { font-size: calc(var(--u) * 15); color: var(--soft); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .msg { text-align: center; font-size: calc(var(--u) * 26); font-weight: 900; margin: 0; min-block-size: calc(var(--u) * 36); }
+  .msg.watch { color: var(--blue); } .msg.go { color: var(--green); } .msg.oops { color: var(--red); }
+  #toast { position: fixed; inset-inline: 0; top: 40%; margin-inline: auto; inline-size: max-content; padding: 10px 26px; border-radius: 99px;
+    background: rgba(255,210,94,.18); border: 3px solid var(--gold); color: var(--gold); font-size: calc(min(100vw,100vh,760px)/600*34); font-weight: 900;
+    opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  /* Montessori pictures */
+  .prompt { margin: 0 0 calc(var(--u) * 6); text-align: center; font-size: calc(var(--u) * 24); font-weight: 800; color: var(--blue); }
+  .vis { display: flex; align-items: flex-end; justify-content: center; flex-wrap: wrap; gap: calc(var(--u) * 10); min-block-size: calc(var(--u) * 120); max-block-size: calc(var(--u) * 175); overflow: hidden; margin-bottom: calc(var(--u) * 6); }
+  .bead { display: inline-block; inline-size: calc(var(--u) * 20); block-size: calc(var(--u) * 20); border-radius: 50%; }
+  .bead.empty { border: calc(var(--u) * 2.5) dashed rgba(255,255,255,.45); }
+  .units { display: grid; grid-template-columns: repeat(3, auto); gap: calc(var(--u) * 4); align-self: flex-end; }
+  .tens { display: flex; gap: calc(var(--u) * 5); }
+  .tenbar { display: block; inline-size: calc(var(--u) * 15); block-size: calc(var(--u) * 150); border-radius: calc(var(--u) * 8);
+    background: repeating-linear-gradient(to bottom, #ffd25e 0 calc(var(--u) * 13), #6b5418 calc(var(--u) * 13) calc(var(--u) * 15)); }
+  .hunds { display: grid; grid-template-columns: repeat(3, auto); gap: calc(var(--u) * 4); }
+  .hund { display: block; inline-size: calc(var(--u) * 48); block-size: calc(var(--u) * 48); border-radius: calc(var(--u) * 4);
+    background: repeating-linear-gradient(to right, transparent 0 calc(var(--u) * 4.3), #6b5418 calc(var(--u) * 4.3) calc(var(--u) * 4.8)), repeating-linear-gradient(to bottom, #ffd25e 0 calc(var(--u) * 4.3), #6b5418 calc(var(--u) * 4.3) calc(var(--u) * 4.8)); }
+  .beadbar { display: block; inline-size: calc(var(--u) * 18); block-size: calc(var(--u) * 15 * var(--n)); border-radius: calc(var(--u) * 9);
+    background: repeating-linear-gradient(to bottom, var(--c) 0 calc(var(--u) * 13), rgba(0,0,0,.7) calc(var(--u) * 13) calc(var(--u) * 15)); }
+  .times { align-self: center; font-size: calc(var(--u) * 20); font-weight: 800; color: var(--soft); }
+  .frame { display: grid; grid-template-columns: repeat(5, auto); gap: calc(var(--u) * 10); padding: calc(var(--u) * 12); border: calc(var(--u) * 2) solid var(--edge); border-radius: calc(var(--u) * 14); align-self: center; }
+  .frame .bead { inline-size: calc(var(--u) * 34); block-size: calc(var(--u) * 34); }
+  .pairs { display: flex; gap: calc(var(--u) * 12); align-items: flex-start; align-self: center; flex-wrap: wrap; justify-content: center; max-inline-size: 100%; }
+  .pair { display: flex; flex-direction: column; gap: calc(var(--u) * 6); }
+  .pair .bead { inline-size: calc(var(--u) * 24); block-size: calc(var(--u) * 24); }
+  .frac { inline-size: calc(var(--u) * 160); block-size: calc(var(--u) * 160); }
+  .coins { display: flex; gap: calc(var(--u) * 10); align-items: center; align-self: center; flex-wrap: wrap; justify-content: center; }
+  .coin { display: grid; place-items: center; border-radius: 50%; color: #222; font-style: normal; font-weight: 900; font-size: calc(var(--u) * 18); }
+  .c25 { inline-size: calc(var(--u) * 76); block-size: calc(var(--u) * 76); } .c10 { inline-size: calc(var(--u) * 56); block-size: calc(var(--u) * 56); }
+  .c5 { inline-size: calc(var(--u) * 66); block-size: calc(var(--u) * 66); } .c1 { inline-size: calc(var(--u) * 60); block-size: calc(var(--u) * 60); color: #2a1408; }
+  .problem.small { font-size: calc(var(--u) * 60); margin: calc(var(--u) * 2) 0 calc(var(--u) * 12); }
+  .problem.long { font-size: calc(var(--u) * 34); }
+  .problem.small.long { font-size: calc(var(--u) * 30); }
+  .lvgrid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 12); }
+  .lvcol { display: flex; flex-direction: column; gap: calc(var(--u) * 7); }
+  .lvhead { margin: 0 0 calc(var(--u) * 2); text-align: center; font-size: calc(var(--u) * 17); font-weight: 900; color: var(--gold); letter-spacing: .1em; text-transform: uppercase; }
+  .btn.lv { font-size: calc(var(--u) * 16); padding: calc(var(--u) * 9) calc(var(--u) * 10); text-align: start; border-radius: calc(var(--u) * 14); border-width: calc(var(--u) * 2); }
+  .btn.lv.cur { border-color: var(--gold); color: var(--gold); }
+  .answers .btn { overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { .btn.wrong { animation: none; } .arrow, #toast { transition: none; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="bar"><span id="crumb">Kids Games</span><span id="stars"></span></div>
+  <section id="view" aria-live="polite"></section>
+</main>
+<div id="toast" role="status"></div>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const view = $('view');
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, String(v)); } catch { /* blocked */ } },
+  };
+  const num = (v, d) => { const n = Number(v); return v === null || v === undefined || v === '' || !Number.isFinite(n) ? d : n; };
+  const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  function el(tag, props, ...kids) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v;
+      else if (k === 'on') n.addEventListener('click', v); else if (k === 'focus') n.dataset.autofocus = '1';
+      else n.setAttribute(k, v);
+    }
+    if (tag === 'button') n.type = 'button';
+    for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) n.append(c);
+    return n;
+  }
+  const focusFirst = () => requestAnimationFrame(() => { const t = view.querySelector('[data-autofocus]:not(:disabled)') || view.querySelector('button:not(:disabled)'); if (t) t.focus(); });
+
+  let toastT = 0;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1300); }
+
+  function say(text) {
+    try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; speechSynthesis.speak(u); } catch { /* no speech */ }
+  }
+  let audio = null;
+  function beep(freq, ms = 220, type = 'sine') {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.value = freq; o.connect(g); g.connect(audio.destination);
+      const t = audio.currentTime;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+      o.start(t); o.stop(t + ms / 1000 + 0.05);
+    } catch { /* no audio */ }
+  }
+  const happy = () => { beep(660, 140); setTimeout(() => beep(880, 200), 120); };
+  const sad = () => beep(200, 260, 'triangle');
+
+  // Stars collected across all games.
+  let stars = num(store.get('kids.stars'), 0);
+  const showStars = () => { $('stars').textContent = '★ ' + stars; };
+  const addStar = (n = 1) => { stars += n; store.set('kids.stars', stars); showStars(); };
+  showStars();
+
+  /* ---------- Screens & Back (middle-finger tap) ---------- */
+  const screens = {};
+  let leave = null, screen = '';
+  function go(name, replace) {
+    if (replace) history.replaceState({ s: name }, ''); else history.pushState({ s: name }, '');
+    render(name);
+  }
+  function render(name) {
+    if (leave) { try { leave(); } catch { /* */ } leave = null; }
+    screen = name;
+    view.textContent = '';
+    (screens[name] || screens.home)();
+  }
+  window.addEventListener('popstate', (e) => render(e.state && e.state.s ? e.state.s : 'home'));
+  const crumb = (t) => { $('crumb').textContent = t; };
+
+  screens.home = () => {
+    crumb('Kids Games');
+    view.append(
+      el('h1', { class: 'center', text: 'Let’s play!' }),
+      el('p', { class: 'sub center', text: 'Swipe to pick a game, then pinch.' }),
+      el('div', { class: 'tiles' },
+        el('button', { class: 'btn tile t-math', on: () => go('math'), focus: true },
+          el('span', { class: 'icon', text: '+ −' }), 'Math Blaster', el('small', { text: 'Level ' + mathLevel() })),
+        el('button', { class: 'btn tile t-mem', on: () => go('memory') },
+          el('span', { class: 'icon', text: '↑ ↓' }), 'Memory', el('small', { text: 'Best: ' + num(store.get('kids.memBest'), 0) }))),
+      el('p', { class: 'note', text: 'You have ' + stars + ' star' + (stars === 1 ? '' : 's') + '!' }),
+    );
+    focusFirst();
+  };
+
+  /* ================= Math Blaster (Montessori 1st & 2nd grade) =================
+     Levels follow the usual lower-elementary Montessori order: hundred board,
+     ten friends, strip boards, golden beads, cards & counters, bead chains,
+     stamp game, bead bars, fraction insets, money. 10 problems a round;
+     8 right on the first try moves up a level. */
+  const BEAD = { 1: '#ff6b6b', 2: '#7ee2a8', 3: '#ff9ee0', 4: '#ffe066', 5: '#8fd3ff', 6: '#c7a4ff', 7: '#f2f2f2', 8: '#d29a62', 9: '#6f9bff', 10: '#ffd25e' };
+  const COINS = [{ v: 25, c: '#d9dde3', n: 'quarter' }, { v: 10, c: '#c9ced6', n: 'dime' }, { v: 5, c: '#aeb4bd', n: 'nickel' }, { v: 1, c: '#d48a5a', n: 'penny' }];
+
+  // Picture helpers (plain shapes so they read well on the glasses)
+  const vis = (...kids) => el('div', { class: 'vis' }, ...kids);
+  const units = (n, color = BEAD[10]) => el('div', { class: 'units' }, ...Array.from({ length: n }, () => el('i', { class: 'bead', style: 'background:' + color })));
+  const tenBars = (n) => el('div', { class: 'tens' }, ...Array.from({ length: n }, () => el('i', { class: 'tenbar' })));
+  const hundreds = (n) => el('div', { class: 'hunds' }, ...Array.from({ length: n }, () => el('i', { class: 'hund' })));
+  const beadBar = (len) => el('i', { class: 'beadbar', style: '--n:' + len + ';--c:' + BEAD[len] });
+  function tenFrame(lit) {
+    return el('div', { class: 'frame' }, ...Array.from({ length: 10 }, (_, i) => el('i', { class: 'bead' + (i < lit ? '' : ' empty'), style: i < lit ? 'background:' + BEAD[10] : '' })));
+  }
+  function counters(n) {   // Cards & counters: pairs side by side, an odd one sits alone
+    return el('div', { class: 'pairs' }, ...Array.from({ length: Math.ceil(n / 2) }, (_, i) =>
+      el('div', { class: 'pair' }, el('i', { class: 'bead', style: 'background:#ff6b6b' }), i * 2 + 1 < n ? el('i', { class: 'bead', style: 'background:#ff6b6b' }) : null)));
+  }
+  function fractionCircle(num, den) {
+    const NS = 'http://www.w3.org/2000/svg', r = 46, svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '-50 -50 100 100'); svg.setAttribute('class', 'frac');
+    for (let i = 0; i < den; i++) {
+      const a0 = (i / den) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+      const path = document.createElementNS(NS, 'path');
+      const large = a1 - a0 > Math.PI ? 1 : 0;
+      path.setAttribute('d', den === 1 ? `M ${-r} 0 A ${r} ${r} 0 1 1 ${r} 0 A ${r} ${r} 0 1 1 ${-r} 0`
+        : `M 0 0 L ${r * Math.cos(a0)} ${r * Math.sin(a0)} A ${r} ${r} 0 ${large} 1 ${r * Math.cos(a1)} ${r * Math.sin(a1)} Z`);
+      path.setAttribute('fill', i < num ? '#ff6b6b' : 'rgba(255,255,255,.08)');
+      path.setAttribute('stroke', '#fff'); path.setAttribute('stroke-width', '2.5');
+      svg.append(path);
+    }
+    return svg;
+  }
+  function coinRow(list) {
+    return el('div', { class: 'coins' }, ...list.map((v) => { const c = COINS.find((x) => x.v === v); return el('i', { class: 'coin c' + v, style: 'background:' + c.c, text: v + '¢' }); }));
+  }
+
+  // Choice helpers
+  function numChoices(ans, spread, lo = 0, hi = 999) {
+    const set = new Set([ans]);
+    let guard = 0;
+    while (set.size < 3 && guard++ < 50) { const d = pick(spread); const c = ans + d; if (c >= lo && c <= hi && c !== ans) set.add(c); }
+    for (let k = 1; set.size < 3; k++) set.add(ans + k);
+    return shuffle([...set].map(String));
+  }
+  const FACT = [1, -1, 2, -2];
+  const PLACE = [1, -1, 10, -10, 9, -9];
+
+  const LEVELS = [
+    // ---------- 1st grade ----------
+    { grade: 1, name: 'Hundred board', tip: 'What comes next or before', make() {
+      const after = Math.random() < 0.6, n = after ? rand(1, 98) : rand(2, 99), ans = after ? n + 1 : n - 1;
+      return { prompt: after ? 'What comes after?' : 'What comes before?', text: after ? n + ', ?' : '?, ' + n,
+        speak: 'What number comes ' + (after ? 'after ' : 'before ') + n + '?', ans: String(ans), choices: numChoices(ans, [1, -1, 2, -2, 10, -10], 0, 100) };
+    } },
+    { grade: 1, name: 'Ten friends', tip: 'Make 10', make() {
+      const a = rand(1, 9), ans = 10 - a;
+      return { visual: vis(tenFrame(a)), text: a + ' + ? = 10', speak: a + ' plus what makes 10?', ans: String(ans), choices: numChoices(ans, FACT, 0, 10),
+        hint: 'Count the empty spots.' };
+    } },
+    { grade: 1, name: 'Addition strip board', tip: 'Facts to 18', make() {
+      const a = rand(1, 9), b = rand(1, 9), ans = a + b;
+      return { visual: vis(beadBar(a), beadBar(b)), text: a + ' + ' + b + ' = ?', speak: a + ' plus ' + b + '?', ans: String(ans), choices: numChoices(ans, FACT, 0, 18),
+        hint: 'Start at ' + Math.max(a, b) + ' and count up ' + Math.min(a, b) + '.' };
+    } },
+    { grade: 1, name: 'Subtraction strip board', tip: 'Facts from 18', make() {
+      const b = rand(1, 9), ans = rand(0, 9), a = ans + b;
+      return { visual: vis(beadBar(Math.min(a, 10)), a > 10 ? beadBar(a - 10) : null), text: a + ' − ' + b + ' = ?', speak: a + ' minus ' + b + '?', ans: String(ans), choices: numChoices(ans, FACT, 0, 18),
+        hint: 'Start at ' + a + ' and count back ' + b + '.' };
+    } },
+    { grade: 1, name: 'Golden beads: tens', tip: 'Tens and units', make() {
+      const t = rand(1, 9), u = rand(0, 9), ans = t * 10 + u;
+      return { visual: vis(tenBars(t), units(u)), prompt: 'How many beads?', text: t + ' tens, ' + u + ' units', speak: t + ' tens and ' + u + ' units. How many?',
+        ans: String(ans), choices: numChoices(ans, PLACE, 0, 99), hint: 'Count the tens: 10, 20, 30… then add the units.' };
+    } },
+    { grade: 1, name: 'Cards and counters', tip: 'Odd or even', make() {
+      const n = rand(1, 20), even = n % 2 === 0;
+      return { visual: vis(counters(n)), prompt: 'Is ' + n + ' odd or even?', text: String(n), speak: 'Is ' + n + ' odd or even?', ans: even ? 'Even' : 'Odd', choices: ['Odd', 'Even'],
+        hint: 'Does every counter have a partner?' };
+    } },
+    { grade: 1, name: 'Bead chains', tip: 'Skip count by 2, 5, 10', make() {
+      const step = pick([2, 5, 10]), start = step * rand(1, 6), seq = [start, start + step, start + 2 * step], ans = start + 3 * step;
+      return { visual: vis(beadBar(step === 10 ? 10 : step), el('span', { class: 'times', text: 'chain of ' + step + 's' })), text: seq.join(', ') + ', ?',
+        speak: 'Count by ' + step + 's. ' + seq.join(', ') + '. What comes next?', ans: String(ans), choices: numChoices(ans, [step, -step, 1, -1], 0, 200) };
+    } },
+    // ---------- 2nd grade ----------
+    { grade: 2, name: 'Stamp game: adding', tip: '2-digit adding', make() {
+      const a = rand(11, 79), b = rand(10, 99 - a), ans = a + b;
+      return { text: a + ' + ' + b + ' = ?', speak: a + ' plus ' + b + '?', ans: String(ans), choices: numChoices(ans, [1, -1, 10, -10], 0, 99),
+        hint: 'Add the units first. If you get 10 or more, exchange for a ten.' };
+    } },
+    { grade: 2, name: 'Stamp game: taking away', tip: '2-digit subtracting', make() {
+      const a = rand(30, 99), b = rand(10, a - 5), ans = a - b;
+      return { text: a + ' − ' + b + ' = ?', speak: a + ' minus ' + b + '?', ans: String(ans), choices: numChoices(ans, [1, -1, 10, -10], 0, 99),
+        hint: 'Not enough units? Exchange a ten for 10 units.' };
+    } },
+    { grade: 2, name: 'Golden beads: hundreds', tip: 'Place value to 999', make() {
+      const h = rand(1, 9), t = rand(0, 9), u = rand(0, 9), ans = h * 100 + t * 10 + u;
+      return { visual: vis(hundreds(h), tenBars(t), units(u)), prompt: 'How many beads?', text: h + ' hundreds, ' + t + ' tens, ' + u + ' units',
+        speak: h + ' hundreds, ' + t + ' tens, and ' + u + ' units. How many?', ans: String(ans), choices: numChoices(ans, [1, -1, 10, -10, 100, -100], 0, 999) };
+    } },
+    { grade: 2, name: 'Bead bars: multiplying', tip: 'Groups of 2, 5, 10, then all', make() {
+      const lvlMax = Math.random() < 0.5 ? pick([2, 5, 10]) : rand(2, 9), times = rand(1, lvlMax === 10 ? 5 : 5), ans = times * lvlMax;
+      return { visual: vis(...Array.from({ length: times }, () => beadBar(lvlMax))), prompt: times + ' bars of ' + lvlMax, text: times + ' × ' + lvlMax + ' = ?',
+        speak: times + ' bars of ' + lvlMax + '. ' + times + ' times ' + lvlMax + '?', ans: String(ans), choices: numChoices(ans, [lvlMax, -lvlMax, 1, -1], 0, 100),
+        hint: 'Skip count by ' + lvlMax + ', ' + times + ' times.' };
+    } },
+    { grade: 2, name: 'Fraction insets', tip: 'Halves, thirds, fourths', make() {
+      const den = pick([2, 3, 4, 4, 6, 8]), num = rand(1, den - 1), ans = num + '/' + den;
+      const opts = new Set([ans]);
+      const alt = [(den - num) + '/' + den, num + '/' + (den === 2 ? 3 : den - 1), num + '/' + (den + 1), (num + 1) + '/' + den, 1 + '/' + num];
+      for (const a of shuffle(alt)) { if (opts.size >= 3) break; const [x, y] = a.split('/').map(Number); if (y > 0 && x > 0 && x <= y) opts.add(a); }
+      const names = { 2: 'halves', 3: 'thirds', 4: 'fourths', 6: 'sixths', 8: 'eighths' };
+      return { visual: vis(fractionCircle(num, den)), prompt: 'How much is red?', speak: 'The circle is cut in ' + names[den] + '. How much is red?',
+        ans, choices: shuffle([...opts]), hint: 'Count the red pieces, then count all the pieces.' };
+    } },
+    { grade: 2, name: 'Counting money', tip: 'Coins to $1', make() {
+      const list = [];
+      let total = 0;
+      const n = rand(2, 6);
+      for (let i = 0; i < n; i++) { const c = pick([25, 10, 10, 5, 5, 1, 1, 1]); if (total + c > 99) break; list.push(c); total += c; }
+      list.sort((a, b) => b - a);
+      return { visual: vis(coinRow(list)), prompt: 'How much money?', speak: 'How many cents is that?', ans: total + '¢',
+        choices: numChoices(total, [1, -1, 5, -5, 10, -10], 1, 99).map((x) => x + '¢'), hint: 'Start with the biggest coin and count on.' };
+    } },
+    { grade: 2, name: '2nd grade review', tip: 'A little of everything', make() {
+      return LEVELS[pick([7, 8, 9, 10, 11, 12])].make();
+    } },
+  ];
+  const mathLevel = () => Math.min(LEVELS.length, Math.max(1, num(store.get('kids.mLevel'), 1)));
+  const ROUND = 10;
+  let round = null;
+
+  screens.math = () => {
+    const lv = mathLevel(), L = LEVELS[lv - 1];
+    round = { lv, n: 0, right: 0 };
+    crumb('Math Blaster');
+    view.append(
+      el('p', { class: 'sub center', style: 'margin:0', text: (L.grade === 1 ? '1st' : '2nd') + ' grade · Level ' + lv }),
+      el('h1', { class: 'center', text: L.name }),
+      el('p', { class: 'sub center', text: L.tip }),
+      el('div', { class: 'stack' },
+        el('button', { class: 'btn', on: () => go('problem', true), focus: true }, 'Start!'),
+        el('button', { class: 'btn', on: () => go('levels', true) }, 'Pick a level')),
+      el('p', { class: 'note', text: 'Get 8 right to go up a level.' }),
+    );
+    say(L.name + '. Pinch start!');
+    focusFirst();
+  };
+
+  screens.levels = () => {
+    crumb('Pick a level');
+    const cur = mathLevel();
+    const col = (g) => el('div', { class: 'lvcol' },
+      el('p', { class: 'lvhead', text: g === 1 ? '1st grade' : '2nd grade' }),
+      ...LEVELS.map((L, i) => (L.grade !== g ? null : el('button', {
+        class: 'btn lv' + (i + 1 === cur ? ' cur' : ''), focus: i + 1 === cur,
+        on: () => { store.set('kids.mLevel', i + 1); go('math', true); },
+      }, (i + 1) + '. ' + L.name))));
+    view.append(el('div', { class: 'lvgrid' }, col(1), col(2)));
+    focusFirst();
+  };
+
+  screens.problem = () => {
+    if (!round) { go('math', true); return; }
+    const L = LEVELS[round.lv - 1];
+    crumb('Math Blaster · ' + (L.grade === 1 ? '1st' : '2nd') + ' grade');
+    const p = L.make();
+    let tries = 0, done = false;
+    const dots = el('div', { class: 'progress' }, ...Array.from({ length: ROUND }, (_, i) =>
+      el('i', { class: i < round.n ? 'done' : i === round.n ? 'now' : '' })));
+    const cheer = el('p', { class: 'cheer' });
+    const btns = p.choices.map((c, i) => {
+      const b = el('button', { class: 'btn', focus: i === Math.floor((p.choices.length - 1) / 2) }, c);
+      b.addEventListener('click', () => {
+        if (done || b.disabled) return;
+        if (c === p.ans) {
+          done = true;
+          b.classList.add('right');
+          if (tries === 0) { round.right += 1; addStar(); }
+          cheer.className = 'cheer good';
+          cheer.textContent = pick(tries === 0 ? ['Great job! ★', 'You got it! ★', 'Awesome! ★', 'Super! ★'] : ['Yes! That’s it!', 'You got it!']);
+          happy();
+          say('Yes! ' + p.ans.replace('/', ' out of ').replace('¢', ' cents') + '!');
+          round.n += 1;
+          setTimeout(() => go(round.n >= ROUND ? 'mathDone' : 'problem', true), 1700);
+        } else {
+          tries += 1;
+          b.classList.add('wrong'); b.disabled = true;
+          sad();
+          cheer.className = 'cheer try';
+          cheer.textContent = tries >= 2 && p.hint ? p.hint : 'Try again!';
+          const left = btns.find((x) => !x.disabled);
+          if (left) left.focus();
+          if (tries >= 2 && p.hint) say(p.hint);
+        }
+      });
+      return b;
+    });
+    const compact = !!p.visual;
+    view.append(...[dots,
+      p.prompt ? el('p', { class: 'prompt', text: p.prompt }) : null,
+      p.visual || null,
+      p.text ? el('div', { class: 'problem' + (compact ? ' small' : '') + (p.text.length > 14 ? ' long' : '') }, p.text) : null,
+      el('div', { class: 'answers', style: 'grid-template-columns: repeat(' + btns.length + ', 1fr)' }, ...btns),
+      cheer].filter(Boolean));
+    say(p.speak);
+    focusFirst();
+  };
+
+  screens.mathDone = () => {
+    if (!round) { go('home', true); return; }
+    crumb('Math Blaster');
+    const up = round.right >= 8 && round.lv < LEVELS.length;
+    if (up) store.set('kids.mLevel', round.lv + 1);
+    const next = LEVELS[mathLevel() - 1];
+    const starRow = el('div', { class: 'bigstars' }, ...Array.from({ length: ROUND }, (_, i) => el('span', { class: i < round.right ? '' : 'off', text: '★' })));
+    view.append(
+      el('h1', { class: 'center', text: up ? 'Level up!' : round.right >= 6 ? 'Nice work!' : 'Good try!' }),
+      starRow,
+      el('div', { class: 'score', text: round.right + ' / ' + ROUND }),
+      el('div', { class: 'stack' },
+        el('button', { class: 'btn', on: () => go('math', true), focus: true }, up ? 'Next: ' + next.name : 'Play again'),
+        el('button', { class: 'btn', on: () => history.back() }, 'All games')));
+    if (up) { happy(); setTimeout(happy, 350); say('Level up! You got ' + round.right + ' right! Next is ' + next.name + '.'); }
+    else say('You got ' + round.right + ' right! ' + (round.right >= 6 ? 'Nice work!' : 'Let’s try again!'));
+    round = null;
+    focusFirst();
+  };
+
+  /* ================= Memory =================
+     Watch the arrows light up, then swipe the same way in the same order. */
+  const DIRS = ['up', 'right', 'down', 'left'];
+  const TONES = { up: 523, right: 659, down: 784, left: 440 };
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  let mem = null;
+
+  screens.memory = () => {
+    crumb('Memory');
+    const best = num(store.get('kids.memBest'), 0);
+    const pads = {};
+    const pad = el('div', { class: 'pad' },
+      ...DIRS.map((d) => (pads[d] = el('div', { class: 'arrow a-' + d, text: { up: '↑', down: '↓', left: '←', right: '→' }[d] }))),
+      el('div', { class: 'hub' }, el('b', { id: 'memScore', text: '0' }), el('span', { id: 'memBest', text: 'Best ' + best })));
+    const msg = el('p', { class: 'msg', text: 'Pinch to start!' });
+    view.append(msg, pad);
+    mem = { seq: [], pos: 0, phase: 'ready', timers: [], best };
+    const later = (fn, ms) => { mem.timers.push(setTimeout(fn, ms)); };
+    const flash = (d, ms) => { pads[d].classList.add('lit'); beep(TONES[d], ms - 40, 'square'); later(() => pads[d].classList.remove('lit'), ms - 60); };
+    const setMsg = (t, cls) => { msg.textContent = t; msg.className = 'msg ' + (cls || ''); };
+
+    function play() {
+      mem.phase = 'watch';
+      setMsg('Watch…', 'watch');
+      const step = Math.max(380, 760 - mem.seq.length * 30);
+      mem.seq.forEach((d, i) => later(() => flash(d, step - 120), 600 + i * step));
+      later(() => { mem.phase = 'input'; mem.pos = 0; setMsg('Your turn! Swipe!', 'go'); }, 600 + mem.seq.length * step);
+    }
+    function next() { mem.seq.push(pick(DIRS)); $('memScore').textContent = mem.seq.length - 1; play(); }
+    function start() { mem.seq = []; say('Watch the arrows, then copy me!'); later(next, 1300); mem.phase = 'starting'; setMsg('Get ready…', 'watch'); }
+    function input(d) {
+      flash(d, 300);
+      if (d !== mem.seq[mem.pos]) {
+        mem.phase = 'over';
+        const score = mem.seq.length - 1;
+        sad();
+        if (score > mem.best) { mem.best = score; store.set('kids.memBest', score); $('memBest').textContent = 'New best!'; }
+        if (score > 0) addStar(Math.min(score, 10));
+        setMsg('Oops! You got ' + score + '. Pinch to play again', 'oops');
+        say(score > 0 ? 'You remembered ' + score + '! Great memory!' : 'Oops! Let’s try again!');
+        later(() => pads[mem.seq[mem.pos]].classList.add('lit'), 350);   // show the right one
+        later(() => pads[mem.seq[mem.pos]].classList.remove('lit'), 1100);
+        return;
+      }
+      mem.pos += 1;
+      if (mem.pos === mem.seq.length) {
+        mem.phase = 'watch';
+        $('memScore').textContent = mem.seq.length;
+        setMsg(pick(['Yes! ★', 'Great! ★', 'Wow! ★', 'You did it! ★']), 'go');
+        if (mem.seq.length % 5 === 0) { toast('★ ' + mem.seq.length + ' in a row!'); say(mem.seq.length + ' in a row! Amazing!'); }
+        later(next, 1100);
+      }
+    }
+    const onKey = (e) => {
+      if (screen !== 'memory') return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (mem.phase === 'ready' || mem.phase === 'over') start();
+        return;
+      }
+      const d = KEYMAP[e.key];
+      if (!d) return;
+      e.preventDefault();
+      if (mem.phase === 'input' && !e.repeat) input(d);
+    };
+    document.addEventListener('keydown', onKey);
+    // Phone preview: tap to start, swipe for arrows.
+    let t0 = null;
+    const ts = (e) => { const t = e.changedTouches[0]; t0 = { x: t.clientX, y: t.clientY }; };
+    const te = (e) => {
+      if (!t0) return; const t = e.changedTouches[0]; const dx = t.clientX - t0.x, dy = t.clientY - t0.y; t0 = null;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) { if (mem.phase === 'ready' || mem.phase === 'over') start(); return; }
+      if (mem.phase !== 'input') return;
+      input(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    };
+    view.addEventListener('touchstart', ts, { passive: true });
+    view.addEventListener('touchend', te, { passive: true });
+    leave = () => {
+      document.removeEventListener('keydown', onKey);
+      view.removeEventListener('touchstart', ts); view.removeEventListener('touchend', te);
+      mem.timers.forEach(clearTimeout); mem = null;
+    };
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  };
+
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  history.replaceState({ s: 'home' }, '');
+  render('home');
+})();
+</script>
+</body>
+</html>
