@@ -1,0 +1,56 @@
+# How to write questions (read me)
+Q: This deck shows the format. Which mark tells the app a choice is correct?
+- A dash
+* An asterisk
+- A number
+Why: Start each choice with a dash, and use an asterisk for the right one. Delete this deck once you've added your own.
+
+Q: How do you write a question without choices?
+A: Put the answer on a line that starts with "A:". You'll see the question, pinch Show answer, then grade yourself.
+Why: Add an optional "Why:" line for the explanation, like this one.
+
+# Stats review (sample)
+Q: At α = 0.05, a test gives p = 0.03. What do you conclude?
+- Fail to reject H0
+* Reject H0
+- Accept H0 as true
+- There isn't enough information
+Why: p < α, so the result is statistically significant and you reject the null hypothesis. (You never "accept" H0.)
+
+Q: What is a Type I error?
+* Rejecting H0 when H0 is actually true
+- Failing to reject H0 when H0 is false
+- Choosing α too large
+- Using the wrong test statistic
+Why: Its probability is α. Failing to reject a false H0 is a Type II error.
+
+Q: Which measure of center is most resistant to outliers?
+- Mean
+* Median
+- Midrange
+Why: The median depends only on the middle value(s). The mean and the midrange both get pulled toward extreme values.
+
+Q: A 95% confidence interval for μ is (12.1, 15.3). What is the margin of error?
+A: 1.6
+Why: The margin of error is half the width: (15.3 − 12.1) ÷ 2 = 1.6. The sample mean is the midpoint, 13.7.
+
+Q: What does the standard error of the mean measure, and how do you compute it?
+A: How much the sample mean varies from sample to sample.
+SE = s ÷ √n
+Why: Bigger samples shrink the standard error, which is why a larger n gives a narrower interval.
+
+# Python & SQL (sample)
+Q: In pandas, how do you count the missing values in each column of df?
+A: df.isna().sum()
+
+Q: Which SQL clause filters groups after GROUP BY?
+- WHERE
+* HAVING
+- ORDER BY
+- LIMIT
+Why: WHERE filters rows before grouping. HAVING filters the groups after aggregation.
+
+Q: Write a query that returns the 5 highest salaries from the employees table.
+A: SELECT * FROM employees
+ORDER BY salary DESC
+LIMIT 5;
