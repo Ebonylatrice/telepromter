@@ -1,0 +1,7 @@
+# Closed paper trades, one per line (newest at the bottom):
+#   date  symbol  @ entry -> exit  x quantity
+# Options are counted × 100 automatically. Put "short" before a short trade.
+# These are samples. Delete them and add your own.
+10/14 NVDA @ 130.00 -> 138.20 x 10
+10/16 SPY 580C @ 3.20 -> 4.85 x 2
+10/18 TSLA 210P @ 2.50 -> 0.90 x 1

@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Exam practice, checklists, a paper-trading watchlist and a focus timer for Meta Ray-Ban Display.">
+<meta name="mrbd-web-app-capable" content="yes">
+<meta name="application-name" content="Toolkit">
+<meta name="color-scheme" content="dark">
+<title>Toolkit</title>
+<style>
+  /* Additive display: black is see-through, so only content lights up.
+     --u = one design pixel at the 600 x 600 lens, scaled to the real viewport. */
+  :root {
+    --ink: #ffffff;
+    --soft: rgba(255, 255, 255, .64);
+    --faint: rgba(255, 255, 255, .42);
+    --gold: #ffc857;
+    --gold-fill: rgba(255, 200, 87, .14);
+    --blue: #8fd3ff;
+    --green: #7ee2a8;
+    --red: #ff8f8f;
+    --edge: rgba(255, 255, 255, .30);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; inline-size: 100%; block-size: 100%; background: #000; }
+  body {
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  #app {
+    --u: calc(min(100vw, 100vh, 760px) / 600);
+    inline-size: min(100%, 760px);
+    block-size: 100%;
+    margin-inline: auto;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: calc(var(--u) * 22) calc(var(--u) * 30) calc(var(--u) * 14);
+  }
+  .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: calc(var(--u) * 12);
+    padding-block-end: calc(var(--u) * 10);
+    font-size: calc(var(--u) * 16);
+    font-weight: 700;
+    color: var(--soft);
+    font-variant-numeric: tabular-nums;
+  }
+  #crumb {
+    color: var(--gold);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #view {
+    overflow-y: auto;
+    min-block-size: 0;
+    padding: calc(var(--u) * 6);
+    scrollbar-width: none;
+  }
+  #view::-webkit-scrollbar { display: none; }
+
+  h1 { margin: 0 0 calc(var(--u) * 6); font-size: calc(var(--u) * 30); line-height: 1.15; }
+  .sub { margin: 0 0 calc(var(--u) * 16); font-size: calc(var(--u) * 18); color: var(--soft); font-variant-numeric: tabular-nums; }
+  .note { margin: calc(var(--u) * 14) 0 0; font-size: calc(var(--u) * 14); line-height: 1.45; color: var(--faint); }
+  .stack { display: flex; flex-direction: column; gap: calc(var(--u) * 10); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 10); }
+  .row { display: flex; gap: calc(var(--u) * 10); }
+  .row > * { flex: 1 1 0; }
+
+  .btn {
+    font: inherit;
+    color: var(--ink);
+    background: rgba(255, 255, 255, .05);
+    border: calc(var(--u) * 2) solid var(--edge);
+    border-radius: calc(var(--u) * 16);
+    padding: calc(var(--u) * 12) calc(var(--u) * 16);
+    font-size: calc(var(--u) * 20);
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: start;
+    cursor: pointer;
+    min-inline-size: 0;
+  }
+  .btn.center { text-align: center; }
+  .btn.primary { color: var(--gold); border-color: var(--gold); background: var(--gold-fill); text-align: center; }
+  .btn small { display: block; margin-block-start: calc(var(--u) * 3); font-size: .72em; font-weight: 600; color: var(--soft); }
+  .btn:focus { outline: none; }
+  .btn:focus, .btn:focus-visible {
+    outline: calc(var(--u) * 3) solid var(--ink);
+    outline-offset: calc(var(--u) * 3);
+    background: rgba(255, 255, 255, .16);
+  }
+  .btn.primary:focus { background: rgba(255, 200, 87, .30); }
+  .btn:disabled { cursor: default; }
+  .tile { min-block-size: calc(var(--u) * 92); display: flex; flex-direction: column; justify-content: center; }
+  .tile b { font-size: calc(var(--u) * 23); }
+
+  /* Practice */
+  .qnum { margin: 0 0 calc(var(--u) * 8); font-size: calc(var(--u) * 15); font-weight: 700; color: var(--blue); letter-spacing: .1em; text-transform: uppercase; }
+  .q { margin: 0 0 calc(var(--u) * 14); font-size: calc(var(--u) * 25); font-weight: 600; line-height: 1.3; white-space: pre-line; }
+  .choice { display: grid; grid-template-columns: auto 1fr auto; gap: calc(var(--u) * 12); align-items: baseline; }
+  .choice .letter { color: var(--soft); font-weight: 800; }
+  .choice .mark { font-weight: 800; }
+  .choice.correct { border-color: var(--green); background: rgba(126, 226, 168, .14); }
+  .choice.correct .mark { color: var(--green); }
+  .choice.wrong { border-color: var(--red); background: rgba(255, 143, 143, .12); }
+  .choice.wrong .mark { color: var(--red); }
+  .choice:disabled:not(.correct):not(.wrong) { opacity: .45; }
+  .answer {
+    margin: 0 0 calc(var(--u) * 12);
+    padding: calc(var(--u) * 12) calc(var(--u) * 16);
+    border-inline-start: calc(var(--u) * 4) solid var(--gold);
+    background: rgba(255, 200, 87, .08);
+    border-radius: calc(var(--u) * 8);
+    font-size: calc(var(--u) * 22);
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: pre-line;
+  }
+  .why { margin: 0 0 calc(var(--u) * 14); font-size: calc(var(--u) * 18); line-height: 1.4; color: var(--soft); white-space: pre-line; }
+  .verdict { margin: calc(var(--u) * 12) 0 calc(var(--u) * 8); font-size: calc(var(--u) * 20); font-weight: 800; }
+  .verdict.good { color: var(--green); }
+  .verdict.bad { color: var(--red); }
+  .score { font-size: calc(var(--u) * 64); font-weight: 800; line-height: 1; margin: calc(var(--u) * 8) 0; }
+
+  /* Checklists */
+  .check { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 14); align-items: center; }
+  .box {
+    inline-size: calc(var(--u) * 26);
+    block-size: calc(var(--u) * 26);
+    border: calc(var(--u) * 2.5) solid var(--soft);
+    border-radius: calc(var(--u) * 7);
+    display: grid;
+    place-items: center;
+    font-size: calc(var(--u) * 18);
+    font-weight: 900;
+    color: #000;
+  }
+  .check[aria-pressed="true"] { color: var(--faint); }
+  .check[aria-pressed="true"] .box { background: var(--green); border-color: var(--green); }
+  .pbar { block-size: calc(var(--u) * 6); border-radius: 99px; background: rgba(255, 255, 255, .14); overflow: hidden; margin: 0 0 calc(var(--u) * 16); }
+  .pbar i { display: block; block-size: 100%; background: var(--green); transition: inline-size .25s ease; }
+
+  /* Markets */
+  .qrow { display: grid; grid-template-columns: 1fr auto auto; gap: calc(var(--u) * 14); align-items: baseline; font-variant-numeric: tabular-nums; }
+  .qrow .sym { font-weight: 800; font-size: calc(var(--u) * 22); }
+  .qrow .px { font-weight: 700; font-size: calc(var(--u) * 21); }
+  .qrow .chg { font-weight: 800; font-size: calc(var(--u) * 18); min-inline-size: calc(var(--u) * 96); text-align: end; }
+  .qrow .pos { grid-column: 1 / -1; font-size: calc(var(--u) * 15); font-weight: 600; color: var(--soft); margin-block-start: calc(var(--u) * -4); }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .flat { color: var(--soft); }
+  .big { font-size: calc(var(--u) * 54); font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 8) calc(var(--u) * 20); margin: calc(var(--u) * 16) 0; font-size: calc(var(--u) * 19); font-variant-numeric: tabular-nums; }
+  .stats div { display: flex; justify-content: space-between; gap: calc(var(--u) * 8); }
+  .stats span { color: var(--soft); font-weight: 600; }
+  .range { position: relative; block-size: calc(var(--u) * 8); border-radius: 99px; background: rgba(255, 255, 255, .16); margin: calc(var(--u) * 6) 0 calc(var(--u) * 4); }
+  .range i { position: absolute; top: 50%; inline-size: calc(var(--u) * 16); block-size: calc(var(--u) * 16); border-radius: 50%; background: var(--gold); transform: translate(-50%, -50%); }
+  .rangelbl { display: flex; justify-content: space-between; font-size: calc(var(--u) * 14); color: var(--soft); font-variant-numeric: tabular-nums; }
+  .summary { margin: 0 0 calc(var(--u) * 12); font-size: calc(var(--u) * 19); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .logrow { display: grid; grid-template-columns: 1fr auto; gap: calc(var(--u) * 2) calc(var(--u) * 12); padding: calc(var(--u) * 10) calc(var(--u) * 14); border-radius: calc(var(--u) * 12); background: rgba(255, 255, 255, .05); font-size: calc(var(--u) * 19); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .logrow .pos { grid-column: 1 / -1; font-size: calc(var(--u) * 15); font-weight: 600; color: var(--soft); }
+  .qrow .sym { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Timer */
+  .phase { margin: calc(var(--u) * 6) 0 0; text-align: center; font-size: calc(var(--u) * 20); font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+  .phase.work { color: var(--gold); }
+  .phase.rest { color: var(--blue); }
+  .clock { text-align: center; font-size: calc(var(--u) * 132); font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; margin: calc(var(--u) * 4) 0; }
+  .clock.paused { opacity: .45; }
+  .tsub { text-align: center; margin: 0 0 calc(var(--u) * 18); font-size: calc(var(--u) * 17); color: var(--soft); }
+  .minutes { text-align: center; font-size: calc(var(--u) * 60); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  #toast {
+    position: fixed;
+    inset-inline: 0;
+    bottom: calc(min(100vw, 100vh, 760px) / 600 * 30);
+    margin-inline: auto;
+    inline-size: max-content;
+    max-inline-size: 80%;
+    padding: calc(min(100vw, 100vh, 760px) / 600 * 8) calc(min(100vw, 100vh, 760px) / 600 * 18);
+    border-radius: 99px;
+    border: 2px solid var(--edge);
+    background: rgba(255, 255, 255, .12);
+    font-size: calc(min(100vw, 100vh, 760px) / 600 * 19);
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .pbar i, #toast { transition: none; } }
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="bar"><span id="crumb">Toolkit</span><span id="time"></span></div>
+  <section id="view" aria-live="polite"></section>
+</main>
+<div id="toast" role="status"></div>
+<noscript><p style="padding:24px">This app needs JavaScript.</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  /* =================== Helpers =================== */
+  const $ = (id) => document.getElementById(id);
+  const view = $('view');
+  const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+  const num = (v, d) => { if (v === null || v === undefined || v === '') return d; const n = Number(v); return Number.isFinite(n) ? n : d; };
+  const store = {
+    get(k, d = null) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, String(v)); } catch { /* full or blocked */ } },
+    json(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? d : v; } catch { return d; } },
+    put(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* full or blocked */ } },
+  };
+  const hash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+  const clockText = (d = new Date()) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const mmss = (sec) => { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
+  const money = (n) => (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const signed = (n, digits = 2) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(digits);
+  const dir = (n) => (n > 0 ? 'up' : n < 0 ? 'down' : 'flat');
+  const arrow = (n) => (n > 0 ? '▲' : n < 0 ? '▼' : '•');
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // Tiny element builder: el('button', { class: 'btn', on: fn }, 'text', child, ...)
+  function el(tag, props, ...kids) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'on') n.addEventListener('click', v);
+      else if (k === 'text') n.textContent = v;
+      else if (k === 'focus') n.dataset.autofocus = '1';
+      else n.setAttribute(k, v === true ? '' : v);
+    }
+    if (tag === 'button' && !n.hasAttribute('type')) n.type = 'button';
+    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) n.append(kid);
+    return n;
+  }
+
+  // append() would print a literal "null" for skipped parts; this skips them.
+  const add = (node, ...kids) => node.append(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+
+  function speak(text) {
+    try {
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    } catch { /* speech not available */ }
+  }
+
+  let wake = null;
+  async function wakeOn() {
+    try { if ('wakeLock' in navigator && !wake && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch { /* unsupported */ }
+  }
+  function wakeOff() { try { if (wake) wake.release(); } catch { /* ignore */ } wake = null; }
+
+  /* =================== Data files ===================
+     Each tool reads a plain text file next to this page. Edit them on GitHub.
+     The last good copy is kept on the glasses for when Wi-Fi drops. */
+  async function loadText(file) {
+    const key = 'hub.file.' + file;
+    try {
+      const res = await fetch(file + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (res.headers.get('X-Offline-Copy')) throw new Error('offline');
+      const text = await res.text();
+      store.set(key, text);
+      store.set(key + '.at', Date.now());
+      return { text, offline: false };
+    } catch {
+      const text = store.get(key);
+      if (text !== null) return { text, offline: true, at: num(store.get(key + '.at'), Date.now()) };
+      return { text: '', missing: true };
+    }
+  }
+  const offlineNote = (r, file) => r.offline
+    ? 'Offline copy of ' + file + ' · saved ' + new Date(r.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : r.missing ? 'Couldn’t load ' + file : '';
+
+  /* =================== Screens & Back ===================
+     Each screen is a history entry, so the Neural Band's Back gesture
+     (middle-finger tap) steps back one screen. Max depth is 3. */
+  const screens = {};
+  let current = null;
+  let leave = null;          // cleanup for the screen being left
+  let renderId = 0;
+
+  function go(name, params = {}, replace = false) {
+    const st = { s: name, p: params };
+    if (replace) history.replaceState(st, ''); else history.pushState(st, '');
+    render(st);
+  }
+  function render(st) {
+    if (leave) { try { leave(); } catch { /* ignore */ } leave = null; }
+    current = st;
+    renderId++;
+    view.textContent = '';
+    view.scrollTop = 0;
+    (screens[st.s] || screens.home)(st.p || {});
+  }
+  function crumb(text) { $('crumb').textContent = text; }
+  function focusFirst() {
+    requestAnimationFrame(() => {
+      const t = view.querySelector('[data-autofocus]:not(:disabled)') || view.querySelector('button:not(:disabled)');
+      if (t) t.focus();
+    });
+  }
+  window.addEventListener('popstate', (e) => render(e.state && e.state.s ? e.state : { s: 'home', p: {} }));
+
+  function tick() { $('time').textContent = clockText(); }
+  tick();
+  setInterval(tick, 10000);
+
+  /* =================== Home =================== */
+  screens.home = () => {
+    crumb('Toolkit');
+    const h = new Date().getHours();
+    const hello = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    add(view, 
+      el('h1', { text: hello }),
+      el('p', { class: 'sub', text: new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }) }),
+      el('div', { class: 'grid2' },
+        el('button', { class: 'btn tile', on: () => go('decks'), focus: true }, el('b', { text: 'Practice' }), el('small', { text: 'Quiz yourself' })),
+        el('button', { class: 'btn tile', on: () => go('lists') }, el('b', { text: 'Checklists' }), el('small', { text: 'Routines & packing' })),
+        el('button', { class: 'btn tile', on: () => go('markets') }, el('b', { text: 'Markets' }), el('small', { text: 'Paper trading' })),
+        el('button', { class: 'btn tile', on: () => go('timers') }, el('b', { text: 'Timer' }), el('small', { text: 'Focus & breaks' })),
+      ),
+      el('div', { class: 'stack', style: 'margin-top: calc(var(--u) * 10)' },
+        el('button', { class: 'btn center', on: () => location.assign('../') }, 'Teleprompter'),
+      ),
+    );
+    focusFirst();
+  };
+
+  /* =================== Practice ===================
+     practice.txt format:
+       # Deck title
+       Q: question text
+       - wrong choice
+       * correct choice        (multiple choice: mark the right one with *)
+       A: answer               (or a written answer instead of choices)
+       Why: explanation        (optional) */
+  function parsePractice(raw) {
+    const decks = [];
+    let deck = null, card = null, mode = null;
+    const newDeck = (title) => { deck = { title, id: hash(title), cards: [] }; decks.push(deck); };
+    const pushCard = () => {
+      if (card) {
+        if (!deck) newDeck('Practice');
+        if (card.q && (card.a || card.choices.some((c) => c.ok))) { card.id = hash(card.q); deck.cards.push(card); }
+      }
+      card = null; mode = null;
+    };
+    for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      let m;
+      if ((m = t.match(/^#{1,3}\s+(.+)$/))) { pushCard(); newDeck(m[1].trim()); continue; }
+      if ((m = t.match(/^(?:Q|Question)\s*\d*\s*[:.)]\s*(.*)$/i))) { pushCard(); card = { q: m[1], a: '', why: '', choices: [] }; mode = 'q'; continue; }
+      if (!card) continue;
+      if ((m = t.match(/^(?:A|Answer)\s*:\s*(.*)$/i))) { card.a = m[1]; mode = 'a'; continue; }
+      if ((m = t.match(/^(?:Why|Explanation|Explain|Because|Note)\s*:\s*(.*)$/i))) { card.why = m[1]; mode = 'why'; continue; }
+      if ((m = t.match(/^([*-])\s+(.+)$/)) && (mode === 'q' || mode === 'choice')) { card.choices.push({ text: m[2], ok: m[1] === '*' }); mode = 'choice'; continue; }
+      if (mode === 'q') card.q += '\n' + t;
+      else if (mode === 'a') card.a += '\n' + t;
+      else if (mode === 'why') card.why += ' ' + t;
+      else if (mode === 'choice') card.choices[card.choices.length - 1].text += ' ' + t;
+    }
+    pushCard();
+    return decks.filter((d) => d.cards.length);
+  }
+
+  let decks = [];
+  let session = null;
+  const missedKey = (deck) => 'hub.missed.' + deck.id;
+
+  screens.decks = async () => {
+    crumb('Practice');
+    const id = renderId;
+    add(view, el('p', { class: 'sub', text: 'Loading practice.txt…' }));
+    const r = await loadText('practice.txt');
+    if (id !== renderId) return;
+    decks = parsePractice(r.text);
+    view.textContent = '';
+    if (!decks.length) {
+      add(view, 
+        el('h1', { text: 'No questions yet' }),
+        el('p', { class: 'sub', text: 'Add questions to practice.txt on GitHub, then reload.' }),
+        el('button', { class: 'btn primary', on: () => render(current), focus: true }, 'Reload'),
+        el('p', { class: 'note', text: offlineNote(r, 'practice.txt') }),
+      );
+      return focusFirst();
+    }
+    const shuffleOn = store.get('hub.shuffle', '1') === '1';
+    const list = el('div', { class: 'stack' });
+    decks.forEach((deck, i) => {
+      const ids = new Set(deck.cards.map((c) => c.id));
+      const missed = store.json(missedKey(deck), []).filter((x) => ids.has(x));
+      const main = el('button', { class: 'btn', on: () => startSession(i, false), focus: i === 0 },
+        el('span', { text: deck.title }), el('small', { text: deck.cards.length + ' question' + (deck.cards.length === 1 ? '' : 's') }));
+      list.append(missed.length
+        ? el('div', { class: 'row', style: 'align-items: stretch' }, main,
+            el('button', { class: 'btn center', style: 'flex: 0 0 34%', on: () => startSession(i, true) },
+              el('span', { text: 'Review' }), el('small', { text: missed.length + ' missed' })))
+        : main);
+    });
+    add(view, 
+      el('h1', { text: 'Pick a deck' }),
+      el('p', { class: 'sub', text: 'Pinch an answer, or show it and grade yourself.' }),
+      list,
+      el('div', { class: 'row', style: 'margin-top: calc(var(--u) * 10)' },
+        el('button', {
+          class: 'btn center',
+          on: (e) => { const on = store.get('hub.shuffle', '1') !== '1'; store.set('hub.shuffle', on ? '1' : '0'); e.currentTarget.querySelector('b').textContent = on ? 'On' : 'Off'; },
+        }, 'Shuffle: ', el('b', { text: shuffleOn ? 'On' : 'Off' })),
+        el('button', { class: 'btn center', on: () => render(current) }, 'Reload'),
+      ),
+      el('p', { class: 'note', text: offlineNote(r, 'practice.txt') }),
+    );
+    focusFirst();
+  };
+
+  function startSession(d, missedOnly) {
+    const deck = decks[d];
+    let cards = deck.cards.slice();
+    if (missedOnly) { const m = new Set(store.json(missedKey(deck), [])); cards = cards.filter((c) => m.has(c.id)); }
+    if (!cards.length) return toast('Nothing to review');
+    if (store.get('hub.shuffle', '1') === '1') shuffle(cards);
+    session = { deck, total: cards.length, queue: cards, seen: new Set(), firstRight: 0, missed: new Set(), requeued: new Set(), card: null, n: 0 };
+    // From the results screen, reuse its history slot (the glasses allow only 5).
+    nextCard(!!current && (current.s === 'done' || current.s === 'card'));
+  }
+
+  function nextCard(replace = true) {
+    if (!session.queue.length) return finishSession();
+    session.card = session.queue.shift();
+    if (!session.seen.has(session.card.id)) session.n += 1;
+    go('card', {}, replace);
+  }
+
+  function grade(right) {
+    const c = session.card;
+    if (!session.seen.has(c.id)) { session.seen.add(c.id); if (right) session.firstRight += 1; }
+    if (!right) {
+      session.missed.add(c.id);
+      if (!session.requeued.has(c.id)) { session.requeued.add(c.id); session.queue.push(c); }   // ask once more at the end
+    }
+  }
+
+  screens.card = () => {
+    if (!session || !session.card) { history.back(); return; }
+    const c = session.card, deck = session.deck;
+    crumb(deck.title);
+    const again = session.seen.has(c.id);
+    add(view, 
+      el('p', { class: 'qnum', text: again ? 'Second try' : 'Question ' + session.n + ' of ' + session.total }),
+      el('p', { class: 'q', text: c.q }),
+    );
+    const after = el('div');
+    if (c.choices.some((ch) => ch.ok)) {
+      const box = el('div', { class: 'stack' });
+      const buttons = c.choices.map((ch, i) => {
+        const b = el('button', { class: 'btn choice', focus: i === 0 },
+          el('span', { class: 'letter', text: String.fromCharCode(65 + i) }), el('span', { text: ch.text }), el('span', { class: 'mark' }));
+        b.addEventListener('click', () => {
+          if (box.dataset.done) return;
+          box.dataset.done = '1';
+          const right = ch.ok;
+          grade(right);
+          buttons.forEach((bb, j) => {
+            bb.disabled = true;
+            if (c.choices[j].ok) { bb.classList.add('correct'); bb.querySelector('.mark').textContent = '✓'; }
+          });
+          if (!right) { b.classList.add('wrong'); b.querySelector('.mark').textContent = '✗'; }
+          const ans = c.choices.findIndex((x) => x.ok);
+          add(after, 
+            el('p', { class: 'verdict ' + (right ? 'good' : 'bad'), text: right ? '✓ Correct' : '✗ Not quite. It’s ' + String.fromCharCode(65 + ans) + '.' }),
+            c.why ? el('p', { class: 'why', text: c.why }) : null,
+            c.a ? el('p', { class: 'why', text: c.a }) : null,
+            el('button', { class: 'btn primary', style: 'width:100%', on: () => nextCard(), focus: true }, 'Next →'),
+          );
+          focusFirst();
+        });
+        return b;
+      });
+      add(box, ...buttons);
+      add(view, box, after);
+    } else {
+      const reveal = el('button', { class: 'btn primary', focus: true }, 'Show answer');
+      reveal.addEventListener('click', () => {
+        reveal.remove();
+        const done = (right) => { grade(right); nextCard(); };
+        add(after, 
+          el('div', { class: 'answer', text: c.a }),
+          c.why ? el('p', { class: 'why', text: c.why }) : null,
+          el('div', { class: 'row' },
+            el('button', { class: 'btn center', on: () => done(false) }, '✗ Missed it'),
+            el('button', { class: 'btn primary', on: () => done(true), focus: true }, '✓ Got it')),
+        );
+        focusFirst();
+      });
+      add(view, reveal, after);
+    }
+    focusFirst();
+  };
+
+  function finishSession() {
+    const s = session, deck = s.deck;
+    // Remember what was missed so it shows up as "Review" next time.
+    const prev = new Set(store.json(missedKey(deck), []));
+    for (const id of s.seen) prev.delete(id);
+    for (const id of s.missed) prev.add(id);
+    store.put(missedKey(deck), [...prev]);
+    go('done', {}, true);
+  }
+
+  screens.done = () => {
+    const s = session;
+    if (!s) { history.back(); return; }
+    crumb(s.deck.title);
+    const d = decks.indexOf(s.deck);
+    add(view, 
+      el('p', { class: 'qnum', text: 'Round complete' }),
+      el('div', { class: 'score', text: s.firstRight + ' / ' + s.total }),
+      el('p', { class: 'sub', text: s.missed.size ? 'right on the first try · ' + s.missed.size + ' to review' : 'right on the first try. Nice work.' }),
+      el('div', { class: 'stack' },
+        s.missed.size ? el('button', { class: 'btn primary', on: () => startSession(d, true), focus: true }, 'Review the ' + s.missed.size + ' missed') : null,
+        el('button', { class: 'btn center', on: () => startSession(d, false), focus: !s.missed.size }, 'Start over'),
+        el('button', { class: 'btn center', on: () => history.back() }, 'Back to decks'),
+      ),
+    );
+    focusFirst();
+  };
+
+  /* =================== Checklists ===================
+     checklists.txt format:
+       # Morning routine (daily)     ← "(daily)" clears the checks every new day
+       First item
+       Second item */
+  function parseLists(raw) {
+    const lists = [];
+    let cur = null;
+    for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      const m = t.match(/^#{1,3}\s+(.+)$/);
+      if (m) {
+        const daily = /\((daily|every ?day)\)\s*$/i.test(m[1]);
+        const title = m[1].replace(/\s*\((daily|every ?day)\)\s*$/i, '').trim();
+        cur = { title, daily, id: hash(title), items: [] };
+        lists.push(cur);
+        continue;
+      }
+      if (!cur) { cur = { title: 'Checklist', daily: false, id: hash('Checklist'), items: [] }; lists.push(cur); }
+      const item = t.replace(/^(?:[-*•]\s+|\[[ xX]?\]\s*|\d+[.)]\s+)/, '').trim();
+      if (item) cur.items.push(item);
+    }
+    return lists.filter((l) => l.items.length);
+  }
+
+  let lists = [];
+  function checkState(list) {
+    const k = 'hub.check.' + list.id;
+    let st = store.json(k, null);
+    if (!st || (list.daily && st.day !== today())) st = { day: today(), done: [] };
+    return st;
+  }
+  const saveCheck = (list, st) => store.put('hub.check.' + list.id, st);
+
+  screens.lists = async () => {
+    crumb('Checklists');
+    const id = renderId;
+    add(view, el('p', { class: 'sub', text: 'Loading checklists.txt…' }));
+    const r = await loadText('checklists.txt');
+    if (id !== renderId) return;
+    lists = parseLists(r.text);
+    view.textContent = '';
+    if (!lists.length) {
+      add(view, 
+        el('h1', { text: 'No checklists yet' }),
+        el('p', { class: 'sub', text: 'Add lists to checklists.txt on GitHub, then reload.' }),
+        el('button', { class: 'btn primary', on: () => render(current), focus: true }, 'Reload'),
+        el('p', { class: 'note', text: offlineNote(r, 'checklists.txt') }),
+      );
+      return focusFirst();
+    }
+    const stack = el('div', { class: 'stack' });
+    lists.forEach((list, i) => {
+      const st = checkState(list);
+      const done = list.items.filter((it) => st.done.includes(hash(it))).length;
+      stack.append(el('button', { class: 'btn', on: () => go('list', { i }), focus: i === 0 },
+        el('span', { text: list.title }),
+        el('small', { text: done + ' of ' + list.items.length + ' done' + (list.daily ? ' · resets daily' : '') })));
+    });
+    add(view, 
+      el('h1', { text: 'Checklists' }),
+      stack,
+      el('div', { class: 'row', style: 'margin-top: calc(var(--u) * 10)' }, el('button', { class: 'btn center', on: () => render(current) }, 'Reload')),
+      el('p', { class: 'note', text: offlineNote(r, 'checklists.txt') }),
+    );
+    focusFirst();
+  };
+
+  screens.list = ({ i }) => {
+    const list = lists[i];
+    if (!list) { history.back(); return; }
+    crumb('Checklists');
+    const st = checkState(list);
+    saveCheck(list, st);
+    const sub = el('p', { class: 'sub' });
+    const bar = el('i');
+    const update = () => {
+      const n = list.items.filter((it) => st.done.includes(hash(it))).length;
+      sub.textContent = n + ' of ' + list.items.length + ' done' + (list.daily ? ' · clears tomorrow' : '');
+      bar.style.inlineSize = (n / list.items.length * 100) + '%';
+      return n;
+    };
+    const items = list.items.map((it, j) => {
+      const key = hash(it);
+      const on = st.done.includes(key);
+      const b = el('button', { class: 'btn check', 'aria-pressed': on ? 'true' : 'false' },
+        el('span', { class: 'box', text: on ? '✓' : '' }), el('span', { text: it }));
+      b.addEventListener('click', () => {
+        const now = !st.done.includes(key);
+        if (now) st.done.push(key); else st.done = st.done.filter((x) => x !== key);
+        b.setAttribute('aria-pressed', now ? 'true' : 'false');
+        b.querySelector('.box').textContent = now ? '✓' : '';
+        st.day = today();
+        saveCheck(list, st);
+        const n = update();
+        if (now && n === list.items.length) { toast('All done ✓'); speak('All done'); }
+        else if (now) {   // hop to the next unchecked item
+          const next = items.slice(j + 1).concat(items.slice(0, j)).find((x) => x.getAttribute('aria-pressed') !== 'true');
+          if (next) next.focus();
+        }
+      });
+      return b;
+    });
+    const firstOpen = items.find((b) => b.getAttribute('aria-pressed') !== 'true') || items[0];
+    firstOpen.dataset.autofocus = '1';
+    add(view, 
+      el('h1', { text: list.title }),
+      sub,
+      el('div', { class: 'pbar' }, bar),
+      el('div', { class: 'stack' }, ...items),
+      el('div', { class: 'row', style: 'margin-top: calc(var(--u) * 14)' },
+        el('button', {
+          class: 'btn center',
+          on: () => { st.done = []; saveCheck(list, st); render(current); toast('List cleared'); },
+        }, 'Clear all checks')),
+    );
+    update();
+    focusFirst();
+  };
+
+  /* =================== Markets ===================
+     watchlist.txt
+       SPY                          ← just watch it
+       AAPL @ 225.50 x 10           ← paper stock position: 10 shares at $225.50
+       SPY 11/21 580C @ 3.20 x 2    ← paper option: 2 calls, $3.20 premium
+       TSLA 12/19 200P @ 4.10 x 1 iv 55   ← optional IV (from Webull) for a value estimate
+     trades.txt — closed trades for the trade log
+       10/16 SPY 580C @ 3.20 -> 4.85 x 2
+     Stock prices: Finnhub (free key in the link: ?key=...).
+     Option quotes (optional): Market Data token in the link: &opt=... */
+  const params = new URLSearchParams(location.search);
+  const urlKey = params.get('key'), optKey = params.get('opt');
+  if (urlKey && /^[A-Za-z0-9_-]{8,80}$/.test(urlKey)) store.set('hub.fhkey', urlKey);
+  if (optKey && /^[A-Za-z0-9_.-]{8,200}$/.test(optKey)) store.set('hub.mdkey', optKey);
+  if (urlKey || optKey) history.replaceState(history.state, '', location.pathname);   // hide keys from the address
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtStrike = (k) => (Number.isInteger(k) ? String(k) : k.toFixed(2).replace(/0$/, ''));
+
+  // Finds an expiration date in text. Without a year, use this year unless that's long past.
+  function findDate(t) {
+    let m = t.match(/\b(20\d\d)-(\d{1,2})-(\d{1,2})\b/);
+    let y, mo, d;
+    if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
+      mo = +m[1]; d = +m[2];
+      if (m[3]) y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+      else {
+        const now = new Date();
+        y = now.getFullYear();
+        if (new Date(y, mo - 1, d) < new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60)) y += 1;
+      }
+    } else return null;
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return { y, mo, d, raw: m[0] };
+  }
+
+  const STRIKE_RE = /(?:^|\s)\$?(\d+(?:\.\d+)?)\s*(c|p|calls?|puts?)\b/i;
+  const num$ = (s) => parseFloat(String(s).replace(/[$,]/g, ''));
+
+  function parseOption(t) {
+    const sk = t.match(STRIKE_RE);
+    if (!sk) return null;
+    const sym = (t.match(/^\$?([A-Za-z][A-Za-z.\-]{0,9})\b/) || [])[1];
+    const date = findDate(t.replace(sk[0], ' '));
+    if (!sym || !date) return null;
+    const entry = t.match(/(?:@|\bat\b)\s*\$?([\d,]*\.?\d+)/i);
+    const qty = t.match(/(?:\bx|×)\s*(\d+)/i);
+    const iv = t.match(/\biv\s*[:=]?\s*(\d+(?:\.\d+)?)\s*%?/i);
+    const side = /^c/i.test(sk[2]) ? 'C' : 'P';
+    const strike = parseFloat(sk[1]);
+    const exp = new Date(date.y, date.mo - 1, date.d, 15, 0, 0);   // 4 pm Eastern ≈ 3 pm Central
+    const occ = sym.toUpperCase().replace(/[.\-]/g, '') + String(date.y).slice(2) + String(date.mo).padStart(2, '0') +
+      String(date.d).padStart(2, '0') + side + String(Math.round(strike * 1000)).padStart(8, '0');
+    return {
+      kind: 'opt', sym: sym.toUpperCase(), side, strike, exp, occ,
+      entry: entry ? num$(entry[1]) : null, qty: qty ? parseInt(qty[1], 10) : 1,
+      iv: iv ? parseFloat(iv[1]) / 100 : null,
+      label: sym.toUpperCase() + ' ' + fmtStrike(strike) + side + ' ' + MONTHS[date.mo - 1] + ' ' + date.d,
+    };
+  }
+
+  function parseWatch(raw) {
+    const stocks = [], opts = [], seen = new Set();
+    for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+      const t = line.replace(/\/\/.*$/, '').trim();
+      if (!t || t.startsWith('#')) continue;
+      const o = parseOption(t);
+      if (o) { if (!seen.has(o.occ)) { seen.add(o.occ); opts.push(o); } continue; }
+      const parts = /@|\sat\s|\sx\s|×/i.test(t) ? [t] : t.split(/[\s,]+/);
+      for (const p of parts) {
+        const m = p.trim().match(/^\$?([A-Za-z][A-Za-z0-9.\-]{0,9})(?:\s*(?:@|at)\s*\$?([\d,]*\.?\d+))?(?:\s*[x×]\s*(-?[\d.]+))?/i);
+        if (!m) continue;
+        const sym = m[1].toUpperCase();
+        if (seen.has(sym)) continue;
+        seen.add(sym);
+        stocks.push({ kind: 'stock', sym, entry: m[2] ? num$(m[2]) : null, qty: m[3] ? parseFloat(m[3]) : null });
+      }
+    }
+    return { stocks, opts };
+  }
+
+  let watch = [], opts = [];
+  let quotes = store.json('hub.quotes', { at: 0, q: {} });
+  let oquotes = store.json('hub.oquotes', {});
+  let quoteErr = '', optErr = '';
+
+  const symbols = () => [...new Set([...watch.map((w) => w.sym), ...opts.map((o) => o.sym)])];
+
+  async function fetchQuotes() {
+    const key = store.get('hub.fhkey');
+    if (!key) { quoteErr = 'nokey'; return; }
+    const fresh = {};
+    let err = '';
+    await Promise.all(symbols().map(async (sym) => {
+      try {
+        const res = await fetch('https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + encodeURIComponent(key));
+        if (res.status === 401 || res.status === 403) { err = 'badkey'; return; }
+        if (res.status === 429) { err = 'limit'; return; }
+        if (!res.ok) { err = err || 'http'; return; }
+        const d = await res.json();
+        if (typeof d.c !== 'number' || (d.c === 0 && !d.pc)) { fresh[sym] = { bad: true }; return; }
+        fresh[sym] = d;
+      } catch { err = err || 'network'; }
+    }));
+    if (Object.keys(fresh).length) {
+      quotes = { at: Date.now(), q: Object.assign({}, quotes.q, fresh) };
+      store.put('hub.quotes', quotes);
+    }
+    quoteErr = err;
+  }
+
+  /* Optional option quotes from Market Data. The free plan allows 100 calls a
+     day (24-hour-delayed data), so each contract refreshes at most every 15
+     minutes and the app stops at 90 calls a day. */
+  const OPT_EVERY = 15 * 60 * 1000, OPT_DAILY = 90;
+  function optBudget() {
+    const b = store.json('hub.mdcalls', { day: '', n: 0 });
+    return b.day === today() ? b : { day: today(), n: 0 };
+  }
+  async function fetchOptionQuotes(force) {
+    const key = store.get('hub.mdkey');
+    if (!key || !opts.length) return;
+    let budget = optBudget();
+    let err = '';
+    for (const o of opts) {
+      if (o.exp < new Date()) continue;
+      const have = oquotes[o.occ];
+      if (have && !force && Date.now() - have.fetched < OPT_EVERY) continue;
+      if (budget.n >= OPT_DAILY) { err = 'budget'; break; }
+      budget = { day: today(), n: budget.n + 1 };
+      store.put('hub.mdcalls', budget);
+      try {
+        const res = await fetch('https://api.marketdata.app/v1/options/quotes/' + o.occ + '/', { headers: { Authorization: 'Bearer ' + key } });
+        if (res.status === 401 || res.status === 403) { err = 'badkey'; break; }
+        if (res.status === 429 || res.status === 402) { err = 'budget'; break; }
+        const d = await res.json().catch(() => ({}));
+        if (d.s !== 'ok' || !Array.isArray(d.mid)) { oquotes[o.occ] = { fetched: Date.now(), none: true }; continue; }
+        const first = (a) => (Array.isArray(a) && typeof a[0] === 'number' ? a[0] : null);
+        oquotes[o.occ] = {
+          fetched: Date.now(), mid: first(d.mid), bid: first(d.bid), ask: first(d.ask), last: first(d.last),
+          iv: first(d.iv), delta: first(d.delta), updated: first(d.updated) ? first(d.updated) * 1000 : Date.now(),
+        };
+      } catch { err = err || 'network'; }
+    }
+    store.put('hub.oquotes', oquotes);
+    optErr = err;
+  }
+
+  // Black-Scholes, used to estimate an option's value from the live stock price and an IV.
+  const RATE = 0.04;
+  function normCdf(x) {
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989422804014327 * Math.exp(-x * x / 2);
+    const p = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    return x >= 0 ? 1 - p : p;
+  }
+  function blackScholes(S, K, T, sigma, side) {
+    const sq = sigma * Math.sqrt(T);
+    const d1 = (Math.log(S / K) + (RATE + sigma * sigma / 2) * T) / sq;
+    const d2 = d1 - sq;
+    const disc = K * Math.exp(-RATE * T);
+    return side === 'C'
+      ? { value: S * normCdf(d1) - disc * normCdf(d2), delta: normCdf(d1) }
+      : { value: disc * normCdf(-d2) - S * normCdf(-d1), delta: normCdf(d1) - 1 };
+  }
+
+  /* Everything about one option position, given the live stock price.
+     Value source, best first: a fresh option quote ("live"), an estimate from
+     the live stock price + IV ("est."), or what it's worth if it expired at
+     today's price ("at expiry"). */
+  function optInfo(o) {
+    const q = quotes.q[o.sym];
+    const S = q && !q.bad ? q.c : null;
+    const now = Date.now();
+    const msLeft = o.exp - now;
+    const expired = msLeft <= 0;
+    const days = Math.max(0, Math.ceil(msLeft / 86400000));
+    const T = Math.max(msLeft, 0) / (365 * 86400000);
+    const oq = oquotes[o.occ];
+    const breakeven = o.entry !== null ? (o.side === 'C' ? o.strike + o.entry : o.strike - o.entry) : null;
+    const out = { S, days, expired, breakeven, oq, value: null, source: '', delta: null, iv: null };
+    if (S === null) return out;
+    out.intrinsic = o.side === 'C' ? Math.max(0, S - o.strike) : Math.max(0, o.strike - S);
+    const iv = o.iv || (oq && oq.iv) || null;
+    out.iv = iv;
+    if (oq && oq.mid !== null && oq.mid !== undefined && now - oq.updated < 20 * 60 * 1000 && !expired) {
+      out.value = oq.mid; out.source = 'live'; out.delta = oq.delta;
+    } else if (iv && T > 0) {
+      const bs = blackScholes(S, o.strike, T, iv, o.side);
+      out.value = Math.max(bs.value, out.intrinsic); out.source = 'est.'; out.delta = bs.delta;
+    } else {
+      out.value = out.intrinsic; out.source = expired ? 'expired' : 'at expiry';
+    }
+    if (o.entry !== null) {
+      out.pl = (out.value - o.entry) * 100 * o.qty;
+      out.pct = o.entry > 0 ? (out.value - o.entry) / o.entry * 100 : 0;
+    }
+    if (breakeven !== null) out.toBE = breakeven - S;   // how far the stock must move to break even at expiry
+    return out;
+  }
+
+  const posInfo = (w, q) => {
+    if (!q || q.bad || w.entry === null) return null;
+    const pct = (q.c - w.entry) / w.entry * 100;
+    const pl = w.qty !== null ? (q.c - w.entry) * w.qty : null;
+    return { pct, pl };
+  };
+
+  function statusLine() {
+    const age = quotes.at ? ' · as of ' + clockText(new Date(quotes.at)) : '';
+    switch (quoteErr) {
+      case 'badkey': return 'Finnhub didn’t accept the key' + age;
+      case 'limit': return 'Hit the free limit, slowing down' + age;
+      case 'network': return 'Can’t reach Finnhub' + (quotes.at ? ', showing last prices' + age : '');
+      case 'http': return 'Finnhub had a problem' + age;
+      default: return quotes.at ? 'Updated ' + clockText(new Date(quotes.at)) + ' · every ' + refreshSecs() + 's' : 'Loading prices…';
+    }
+  }
+  function optStatus() {
+    if (!opts.length) return '';
+    if (!store.get('hub.mdkey')) return 'Options: estimated from the live stock price';
+    if (optErr === 'badkey') return 'Market Data didn’t accept the option key';
+    if (optErr === 'budget') return 'Option quotes paused: daily limit reached';
+    return 'Option quotes: ' + optBudget().n + ' of ' + OPT_DAILY + ' daily calls used';
+  }
+  const refreshSecs = () => (symbols().length > 25 ? 60 : 30);
+
+  function startRefresh(paint) {
+    let stopped = false;
+    const run = async () => { await fetchQuotes(); if (!stopped) paint(); await fetchOptionQuotes(false); if (!stopped) paint(); };
+    run();
+    const t = setInterval(() => { if (document.visibilityState === 'visible') run(); }, refreshSecs() * 1000);
+    return () => { stopped = true; clearInterval(t); };
+  }
+
+  const srcTag = (src) => (src === 'live' ? '' : ' (' + src + ')');
+
+  screens.markets = async () => {
+    crumb('Markets');
+    const id = renderId;
+    add(view, el('p', { class: 'sub', text: 'Loading watchlist.txt…' }));
+    const r = await loadText('watchlist.txt');
+    if (id !== renderId) return;
+    ({ stocks: watch, opts } = parseWatch(r.text));
+    view.textContent = '';
+    const logBtn = () => el('button', { class: 'btn center', on: () => go('log') }, 'Trade log');
+    if (!store.get('hub.fhkey')) {
+      add(view,
+        el('h1', { text: 'Add your free key' }),
+        el('p', { class: 'sub', text: 'Markets uses Finnhub for prices. It’s free.' }),
+        el('div', { class: 'why' },
+          '1. Sign up at finnhub.io and copy your API key.\n2. In the Meta AI app, connect this web app with the link ending in\n   ?key=YOUR_KEY\n3. Open Markets again.'),
+        el('div', { class: 'row' }, el('button', { class: 'btn center', on: () => history.back(), focus: true }, 'Got it'), logBtn()),
+      );
+      return focusFirst();
+    }
+    if (!watch.length && !opts.length) {
+      add(view,
+        el('h1', { text: 'Empty watchlist' }),
+        el('p', { class: 'sub', text: 'Add symbols to watchlist.txt on GitHub, one per line.' }),
+        el('div', { class: 'row' }, el('button', { class: 'btn primary', on: () => render(current), focus: true }, 'Reload'), logBtn()),
+      );
+      return focusFirst();
+    }
+    const status = el('p', { class: 'note', style: 'margin: 0 0 calc(var(--u) * 10)' });
+    const summary = el('p', { class: 'summary' });
+    const rows = watch.map((w) => el('button', { class: 'btn qrow', on: () => go('quote', { sym: w.sym }) },
+      el('span', { class: 'sym', text: w.sym }), el('span', { class: 'px', text: '—' }), el('span', { class: 'chg flat', text: '' }),
+      w.entry !== null ? el('span', { class: 'pos' }) : null));
+    const orows = opts.map((o, i) => el('button', { class: 'btn qrow', on: () => go('option', { i }) },
+      el('span', { class: 'sym', text: o.label }), el('span', { class: 'px', text: '—' }), el('span', { class: 'chg flat', text: '' }),
+      el('span', { class: 'pos' })));
+    (rows[0] || orows[0]).dataset.autofocus = '1';
+    const ostatus = el('p', { class: 'note', style: 'margin: calc(var(--u) * 6) 0 0' });
+    const paint = () => {
+      status.textContent = statusLine();
+      ostatus.textContent = optStatus();
+      let total = 0, any = false;
+      rows.forEach((b, i) => {
+        const w = watch[i], q = quotes.q[w.sym];
+        const px = b.querySelector('.px'), chg = b.querySelector('.chg'), pos = b.querySelector('.pos');
+        if (!q) { px.textContent = '—'; chg.textContent = ''; return; }
+        if (q.bad) { px.textContent = 'not found'; chg.textContent = ''; return; }
+        px.textContent = q.c.toFixed(2);
+        chg.className = 'chg ' + dir(q.dp);
+        chg.textContent = arrow(q.dp) + ' ' + signed(q.dp) + '%';
+        const p = posInfo(w, q);
+        if (pos && p) {
+          pos.className = 'pos ' + dir(p.pct);
+          pos.textContent = (w.qty !== null ? w.qty + ' @ ' : 'from ') + w.entry.toFixed(2) + ' · ' +
+            (p.pl !== null ? money(p.pl) + ' (' + signed(p.pct, 1) + '%)' : signed(p.pct, 1) + '%');
+          if (p.pl !== null) { total += p.pl; any = true; }
+        }
+      });
+      orows.forEach((b, i) => {
+        const o = opts[i], info = optInfo(o);
+        const px = b.querySelector('.px'), chg = b.querySelector('.chg'), pos = b.querySelector('.pos');
+        if (info.S === null) { px.textContent = '—'; chg.textContent = ''; pos.textContent = o.qty + ' contract' + (o.qty === 1 ? '' : 's'); return; }
+        px.textContent = info.value.toFixed(2);
+        if (info.pl !== undefined) {
+          chg.className = 'chg ' + dir(info.pl);
+          chg.textContent = money(info.pl);
+          if (info.source === 'live' || info.source === 'est.') { total += info.pl; any = true; }
+        } else { chg.textContent = ''; }
+        pos.className = 'pos';
+        pos.textContent = o.qty + ' @ ' + (o.entry !== null ? o.entry.toFixed(2) : '?') + ' · ' +
+          (info.expired ? 'expired' : info.days + 'd left') + ' · ' + o.sym + ' ' + info.S.toFixed(2) + srcTag(info.source);
+      });
+      summary.hidden = !any;
+      if (any) { summary.className = 'summary ' + dir(total); summary.textContent = 'Paper P/L ' + money(total) + (opts.length ? ' (open)' : ''); }
+    };
+    add(view, status, summary,
+      rows.length ? el('div', { class: 'stack' }, ...rows) : null,
+      orows.length ? el('p', { class: 'qnum', style: 'margin: calc(var(--u) * 16) 0 calc(var(--u) * 8)', text: 'Options' }) : null,
+      orows.length ? el('div', { class: 'stack' }, ...orows) : null,
+      ostatus,
+      el('div', { class: 'row', style: 'margin-top: calc(var(--u) * 12)' }, logBtn(), el('button', { class: 'btn center', on: () => render(current) }, 'Reload')),
+      el('p', { class: 'note', text: 'Practice tool for paper trading. ' + (offlineNote(r, 'watchlist.txt') || '') }));
+    paint();
+    leave = startRefresh(paint);
+    focusFirst();
+  };
+
+  screens.quote = ({ sym }) => {
+    const w = watch.find((x) => x.sym === sym);
+    if (!w) { history.back(); return; }
+    crumb(sym);
+    const box = el('div');
+    add(view, box);
+    const paint = () => {
+      const q = quotes.q[sym];
+      box.textContent = '';
+      if (!q || q.bad) { add(box, el('h1', { text: sym }), el('p', { class: 'sub', text: q && q.bad ? 'Finnhub doesn’t know this symbol.' : statusLine() })); return; }
+      const lo = Math.min(q.l, q.c), hi = Math.max(q.h, q.c);
+      const at = hi > lo ? (q.c - lo) / (hi - lo) * 100 : 50;
+      const p = posInfo(w, q);
+      add(box,
+        el('div', { class: 'big', text: q.c.toFixed(2) }),
+        el('p', { class: 'sub ' + dir(q.d), style: 'margin-top: calc(var(--u) * 6)', text: arrow(q.d) + ' ' + signed(q.d) + ' (' + signed(q.dp) + '%) today' }),
+        el('div', { class: 'rangelbl' }, el('span', { text: 'Low ' + q.l.toFixed(2) }), el('span', { text: 'High ' + q.h.toFixed(2) })),
+        el('div', { class: 'range' }, el('i', { style: 'left:' + clamp(at, 0, 100) + '%' })),
+        el('div', { class: 'stats' },
+          el('div', {}, el('span', { text: 'Open' }), el('b', { text: q.o.toFixed(2) })),
+          el('div', {}, el('span', { text: 'Prev close' }), el('b', { text: q.pc.toFixed(2) }))),
+        p ? el('p', { class: 'summary ' + dir(p.pct) },
+          (w.qty !== null ? 'Your ' + w.qty + ' @ ' + w.entry.toFixed(2) + ': ' : 'From ' + w.entry.toFixed(2) + ': ') +
+          (p.pl !== null ? money(p.pl) + ' (' + signed(p.pct, 1) + '%)' : signed(p.pct, 1) + '%')) : null,
+        el('p', { class: 'note', text: statusLine() }),
+      );
+    };
+    add(view, el('button', { class: 'btn center', style: 'margin-top: calc(var(--u) * 12)', on: () => history.back(), focus: true }, '← Watchlist'));
+    paint();
+    leave = startRefresh(paint);
+    focusFirst();
+  };
+
+  screens.option = ({ i }) => {
+    const o = opts[i];
+    if (!o) { history.back(); return; }
+    crumb(o.label);
+    const box = el('div');
+    add(view, box);
+    const paint = () => {
+      const info = optInfo(o);
+      box.textContent = '';
+      if (info.S === null) { add(box, el('h1', { text: o.label }), el('p', { class: 'sub', text: statusLine() })); return; }
+      const what = { live: 'Option price now', 'est.': 'Estimated value now', 'at expiry': 'Worth at expiration if ' + o.sym + ' stays here', expired: 'Expired: final value' }[info.source];
+      const moveTxt = info.toBE === undefined ? null
+        : (o.side === 'C' ? info.toBE <= 0 : info.toBE >= 0)
+          ? o.sym + ' is past breakeven by ' + Math.abs(info.toBE).toFixed(2)
+          : o.sym + ' needs ' + (info.toBE > 0 ? '+' : '−') + Math.abs(info.toBE).toFixed(2) + ' (' + signed(info.toBE / info.S * 100, 1) + '%) to break even';
+      add(box,
+        el('p', { class: 'qnum', text: what }),
+        el('div', { class: 'big', text: info.value.toFixed(2) }),
+        info.pl !== undefined ? el('p', { class: 'summary ' + dir(info.pl), style: 'margin-top: calc(var(--u) * 6)' },
+          o.qty + ' × ' + o.entry.toFixed(2) + ': ' + money(info.pl) + ' (' + signed(info.pct, 1) + '%)' + srcTag(info.source)) : null,
+        el('div', { class: 'stats' },
+          el('div', {}, el('span', { text: o.sym }), el('b', { text: info.S.toFixed(2) })),
+          el('div', {}, el('span', { text: 'Strike' }), el('b', { text: fmtStrike(o.strike) + (o.side === 'C' ? ' call' : ' put') })),
+          el('div', {}, el('span', { text: 'Breakeven' }), el('b', { text: info.breakeven !== null ? info.breakeven.toFixed(2) : '—' })),
+          el('div', {}, el('span', { text: 'Days left' }), el('b', { text: info.expired ? 'expired' : String(info.days) })),
+          info.delta !== null ? el('div', {}, el('span', { text: 'Delta' }), el('b', { text: info.delta.toFixed(2) })) : null,
+          info.iv ? el('div', {}, el('span', { text: 'IV' }), el('b', { text: Math.round(info.iv * 100) + '%' })) : null),
+        moveTxt ? el('p', { class: 'why', text: moveTxt }) : null,
+        el('p', { class: 'note', text:
+          info.source === 'est.' ? 'Estimate from the live ' + o.sym + ' price and ' + Math.round(info.iv * 100) + '% IV. Real prices vary.'
+          : info.source === 'at expiry' ? 'Add “iv 30” (Webull’s IV) to this line in watchlist.txt for a value estimate.'
+          : info.source === 'live' ? 'Option quote as of ' + clockText(new Date(info.oq.updated)) + ' · ' + statusLine()
+          : statusLine() }),
+      );
+    };
+    add(view, el('button', { class: 'btn center', style: 'margin-top: calc(var(--u) * 12)', on: () => history.back(), focus: true }, '← Watchlist'));
+    paint();
+    leave = startRefresh(paint);
+    focusFirst();
+  };
+
+  /* =================== Trade log ===================
+     trades.txt, one closed trade per line:
+       10/14 NVDA @ 130.00 -> 138.20 x 10
+       10/16 SPY 580C @ 3.20 -> 4.85 x 2       (options count × 100)
+       10/18 short TSLA @ 230 -> 221 x 5       ("short" flips the math) */
+  function parseTrades(raw) {
+    const out = [];
+    for (const line of raw.replace(/\r\n?/g, '\n').split('\n')) {
+      const t = line.replace(/\/\/.*$/, '').trim();
+      if (!t || t.startsWith('#')) continue;
+      const px = t.match(/(?:@|\bat\b)\s*\$?([\d,]*\.?\d+)\s*(?:->|→|=>|\bto\b|-)\s*\$?([\d,]*\.?\d+)/i);
+      if (!px) continue;
+      const before = t.slice(0, px.index);
+      const dm = before.match(/^\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|20\d\d-\d{1,2}-\d{1,2})\s+/);
+      const rest = (dm ? before.slice(dm[0].length) : before).trim();
+      const short = /\bshort\b/i.test(rest);
+      const sk = rest.match(STRIKE_RE);
+      const symM = rest.replace(/\b(short|long|sold|bought)\b/gi, ' ').trim().match(/\$?([A-Za-z][A-Za-z.\-]{0,9})\b/);
+      if (!symM) continue;
+      const qtyM = t.slice(px.index + px[0].length).match(/(?:\bx|×)\s*(\d+(?:\.\d+)?)/i);
+      const entry = num$(px[1]), exit = num$(px[2]), qty = qtyM ? parseFloat(qtyM[1]) : 1;
+      const mult = sk ? 100 : 1;
+      const pl = (exit - entry) * qty * mult * (short ? -1 : 1);
+      out.push({
+        date: dm ? dm[1] : '', pl, pct: entry ? (exit - entry) / entry * 100 * (short ? -1 : 1) : 0,
+        label: (short ? 'Short ' : '') + symM[1].toUpperCase() + (sk ? ' ' + fmtStrike(parseFloat(sk[1])) + (/^c/i.test(sk[2]) ? 'C' : 'P') : ''),
+        detail: entry.toFixed(2) + ' → ' + exit.toFixed(2) + ' × ' + qty,
+      });
+    }
+    return out;
+  }
+
+  screens.log = async () => {
+    crumb('Trade log');
+    const id = renderId;
+    add(view, el('p', { class: 'sub', text: 'Loading trades.txt…' }));
+    const r = await loadText('trades.txt');
+    if (id !== renderId) return;
+    const trades = parseTrades(r.text);
+    view.textContent = '';
+    const back = el('button', { class: 'btn center', on: () => history.back(), focus: true }, '← Markets');
+    if (!trades.length) {
+      add(view,
+        el('h1', { text: 'No closed trades yet' }),
+        el('p', { class: 'why', text: 'When you close a paper trade, add a line to trades.txt on GitHub:\n10/16 SPY 580C @ 3.20 -> 4.85 x 2' }),
+        el('div', { class: 'row' }, back, el('button', { class: 'btn center', on: () => render(current) }, 'Reload')),
+        el('p', { class: 'note', text: offlineNote(r, 'trades.txt') }));
+      return focusFirst();
+    }
+    const wins = trades.filter((t) => t.pl > 0), losses = trades.filter((t) => t.pl < 0);
+    const total = trades.reduce((s, t) => s + t.pl, 0);
+    const avg = (a) => (a.length ? a.reduce((s, t) => s + t.pl, 0) / a.length : 0);
+    const best = trades.reduce((a, b) => (b.pl > a.pl ? b : a)), worst = trades.reduce((a, b) => (b.pl < a.pl ? b : a));
+    const stat = (k, v, cls) => el('div', {}, el('span', { text: k }), el('b', { class: cls, text: v }));
+    add(view,
+      el('p', { class: 'qnum', text: 'Realized paper P/L' }),
+      el('div', { class: 'big ' + dir(total), text: money(total) }),
+      el('div', { class: 'stats' },
+        stat('Trades', String(trades.length)),
+        stat('Win rate', Math.round(wins.length / trades.length * 100) + '%'),
+        stat('Avg win', wins.length ? money(avg(wins)) : '—', 'up'),
+        stat('Avg loss', losses.length ? money(avg(losses)) : '—', 'down'),
+        stat('Best', money(best.pl), dir(best.pl)),
+        stat('Worst', money(worst.pl), dir(worst.pl))),
+      el('div', { class: 'row', style: 'margin-bottom: calc(var(--u) * 14)' }, back, el('button', { class: 'btn center', on: () => render(current) }, 'Reload')),
+      el('p', { class: 'qnum', text: 'Recent' }),
+      el('div', { class: 'stack' }, ...trades.slice().reverse().slice(0, 30).map((t) =>
+        el('div', { class: 'logrow' },
+          el('span', { class: 'sym', text: (t.date ? t.date + '  ' : '') + t.label }),
+          el('span', { class: dir(t.pl), text: money(t.pl) }),
+          el('span', { class: 'pos', text: t.detail + ' · ' + signed(t.pct, 1) + '%' })))),
+      el('p', { class: 'note', text: offlineNote(r, 'trades.txt') }),
+    );
+    focusFirst();
+  };
+
+  /* =================== Timer =================== */
+  const PRESETS = [
+    { name: 'Focus 25 · break 5', work: 25, rest: 5 },
+    { name: 'Deep study 50 · break 10', work: 50, rest: 10 },
+    { name: 'Presentation · 10 min', work: 10, rest: 0 },
+    { name: 'Quick break · 5 min', work: 5, rest: 0 },
+  ];
+  let timer = null;
+
+  screens.timers = () => {
+    crumb('Timer');
+    let custom = clamp(num(store.get('hub.custom'), 15), 1, 180);
+    const mins = el('div', { class: 'minutes', text: custom + ' min' });
+    const set = (d) => { custom = clamp(custom + d, 1, 180); store.set('hub.custom', custom); mins.textContent = custom + ' min'; };
+    add(view, 
+      el('h1', { text: 'Timer' }),
+      el('p', { class: 'sub', text: 'It speaks up when it’s time to switch.' }),
+      el('div', { class: 'stack' },
+        ...PRESETS.map((p, i) => el('button', { class: 'btn', on: () => startTimer(p), focus: i === 0 }, p.name))),
+      el('p', { class: 'note', text: 'Custom' }),
+      mins,
+      el('div', { class: 'row' },
+        el('button', { class: 'btn center', on: () => set(-5) }, '−5'),
+        el('button', { class: 'btn center', on: () => set(-1) }, '−1'),
+        el('button', { class: 'btn center', on: () => set(1) }, '+1'),
+        el('button', { class: 'btn center', on: () => set(5) }, '+5')),
+      el('button', { class: 'btn primary', style: 'width:100%; margin-top: calc(var(--u) * 10)', on: () => startTimer({ name: custom + ' min', work: custom, rest: 0 }) }, 'Start custom timer'),
+    );
+    focusFirst();
+  };
+
+  function startTimer(preset) {
+    timer = { preset, phase: 'work', round: 1, endAt: Date.now() + preset.work * 60000, left: 0, paused: false, warned: false, finished: false };
+    go('run');
+  }
+
+  screens.run = () => {
+    if (!timer) { history.back(); return; }
+    crumb('Timer');
+    const phase = el('p', { class: 'phase' });
+    const clockEl = el('div', { class: 'clock' });
+    const tsub = el('p', { class: 'tsub' });
+    const pauseBtn = el('button', { class: 'btn primary', focus: true });
+    const remaining = () => (timer.paused ? timer.left : (timer.endAt - Date.now()) / 1000);
+    const nudge = (d) => {
+      if (timer.finished) return;
+      if (timer.paused) timer.left = Math.max(1, timer.left + d * 60);
+      else timer.endAt = Math.max(Date.now() + 1000, timer.endAt + d * 60000);
+      timer.warned = remaining() <= 60;
+      paint();
+    };
+    const togglePause = () => {
+      if (timer.finished) { startTimer(timer.preset); return; }
+      if (timer.paused) { timer.endAt = Date.now() + timer.left * 1000; timer.paused = false; }
+      else { timer.left = remaining(); timer.paused = true; }
+      paint();
+    };
+    const skip = () => { if (!timer.finished) advance(true); };
+    pauseBtn.addEventListener('click', togglePause);
+
+    function advance(skipped) {
+      const p = timer.preset;
+      if (timer.phase === 'work' && p.rest > 0) {
+        timer.phase = 'rest'; timer.endAt = Date.now() + p.rest * 60000;
+        if (!skipped) speak('Time for a ' + p.rest + ' minute break.');
+      } else if (timer.phase === 'rest') {
+        timer.phase = 'work'; timer.round += 1; timer.endAt = Date.now() + p.work * 60000;
+        if (!skipped) speak('Break’s over. Back to it.');
+      } else {
+        timer.finished = true;
+        if (!skipped) speak('Time’s up.');
+      }
+      timer.paused = false;
+      timer.warned = false;
+      paint();
+    }
+
+    function paint() {
+      const p = timer.preset;
+      const rem = remaining();
+      if (!timer.finished && !timer.paused && rem <= 0) { advance(false); return; }
+      if (!timer.finished && !timer.paused && !timer.warned && rem <= 60) {
+        const len = (timer.phase === 'work' ? p.work : p.rest);
+        timer.warned = true;
+        if (len >= 3) speak('One minute left.');
+      }
+      phase.className = 'phase ' + (timer.phase === 'rest' ? 'rest' : 'work');
+      phase.textContent = timer.finished ? 'Done' : timer.phase === 'rest' ? 'Break' : (p.rest ? 'Focus' : 'Timer');
+      clockEl.textContent = timer.finished ? '0:00' : mmss(rem);
+      clockEl.classList.toggle('paused', timer.paused);
+      tsub.textContent = timer.finished ? p.name + ' · finished'
+        : p.rest ? 'Round ' + timer.round + ' · ' + (timer.phase === 'work' ? 'then a ' + p.rest + ' min break' : 'then ' + p.work + ' min focus')
+        : p.name;
+      pauseBtn.textContent = timer.finished ? 'Restart' : timer.paused ? 'Resume' : 'Pause';
+    }
+
+    add(view, 
+      phase, clockEl, tsub,
+      el('div', { class: 'row' },
+        el('button', { class: 'btn center', on: () => nudge(-1) }, '−1 min'),
+        pauseBtn,
+        el('button', { class: 'btn center', on: () => nudge(1) }, '+1 min')),
+      el('div', { class: 'row', style: 'margin-top: calc(var(--u) * 10)' },
+        el('button', { class: 'btn center', on: skip }, timer.preset.rest ? 'Skip to next' : 'Finish now'),
+        el('button', { class: 'btn center', on: () => history.back() }, 'End')),
+    );
+    paint();
+    wakeOn();
+    const t = setInterval(paint, 250);
+    leave = () => { clearInterval(t); wakeOff(); timer = null; };
+    focusFirst();
+  };
+
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && current && current.s === 'run') wakeOn(); });
+
+  /* =================== Start =================== */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
+  }
+  history.replaceState({ s: 'home', p: {} }, '');
+  render({ s: 'home', p: {} });
+})();
+</script>
+</body>
+</html>

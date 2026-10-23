@@ -1,0 +1,15 @@
+# One symbol per line. Lines starting with # are notes.
+#
+# Stocks to watch:            SPY
+# Paper stock position:       AAPL @ 225.50 x 10      (10 shares at $225.50)
+# Paper option position:      SPY 11/21 580C @ 3.20 x 2      (2 calls, $3.20 each)
+#                             TSLA 12/19 200P @ 4.10 x 1     (1 put)
+# Add the IV from Webull for a value estimate:   ... x 2 iv 18
+SPY
+QQQ
+AAPL @ 225.50 x 10
+NVDA
+TSLA
+
+SPY 11/21 580C @ 3.20 x 2 iv 18
+TSLA 12/19 200P @ 4.10 x 1
